@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import khonoImage from "@/assets/images/khono.png";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { isAuthenticated, authChecked, checkUserAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -17,10 +19,10 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    base44.auth.me()
-      .then(() => navigate("/"))
-      .catch(() => {});
-  }, [navigate]);
+    if (authChecked && isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [authChecked, isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,7 +34,8 @@ export default function Register() {
     setLoading(true);
     try {
       await base44.auth.register({ email, password, fullName: "", phone: "" });
-      navigate("/");
+      await checkUserAuth();
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
@@ -77,7 +80,6 @@ export default function Register() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                autoFocus
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

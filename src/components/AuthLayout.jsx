@@ -15,7 +15,7 @@ export default function AuthLayout({
   afterCard = null,
   children,
 }) {
-  const cardHeader = (title || subtitle) && (
+  const cardHeader = (title || subtitle) ? (
     <div className="text-center mb-6">
       {title ? (
         <h1
@@ -40,19 +40,7 @@ export default function AuthLayout({
         </p>
       ) : null}
     </div>
-  );
-
-  const card = (
-    <div
-      className={cn(
-        "bg-card p-8",
-        afterCard ? "rounded-none border-0" : "rounded-2xl shadow-sm border border-border"
-      )}
-    >
-      {titleInCard && cardHeader}
-      {children}
-    </div>
-  );
+  ) : null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative overflow-hidden">
@@ -72,19 +60,20 @@ export default function AuthLayout({
               <Icon className="w-7 h-7 text-primary-foreground" aria-hidden="true" />
             </div>
           ) : null}
-          {!titleInCard && cardHeader}
+          {!titleInCard ? cardHeader : null}
         </div>
-        {afterCard ? (
-          <div className="overflow-hidden rounded-2xl shadow-sm border border-border">
-            {card}
-            {afterCard}
+
+        <div className="overflow-hidden rounded-2xl shadow-sm border border-border">
+          <div className="bg-card p-8">
+            {titleInCard ? cardHeader : null}
+            {children}
           </div>
-        ) : (
-          card
-        )}
-        {footer && (
+          {afterCard}
+        </div>
+
+        {footer ? (
           <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
-        )}
+        ) : null}
       </div>
     </div>
   );

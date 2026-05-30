@@ -27,7 +27,7 @@ import ThemeToggleFAB from './components/ThemeToggleFAB';
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} suppressHydrationWarning>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
