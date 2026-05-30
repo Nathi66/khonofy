@@ -40,3 +40,21 @@ npm run dev
 ```
 
 The backend prints its URL on startup.
+
+## Demo accounts
+
+After migrations, seed demo users:
+
+```bash
+cd backend
+npm run db:migrate
+npm run db:seed
+```
+
+| Role      | Name   | Email                 | Password  |
+|-----------|--------|-----------------------|-----------|
+| Superuser | Luis   | `luis@khonofy.local`  | `Demo123!` |
+| Admin     | John   | `john@khonofy.local`  | `Demo123!` |
+| Staff     | Nathii | `nathii@khonofy.local`| `Demo123!` |
+
+Re-run `npm run db:seed` anytime to reset these passwords.

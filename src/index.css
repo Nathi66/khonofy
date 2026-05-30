@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -90,18 +90,29 @@
   body {
     @apply text-foreground;
     min-height: 100vh;
+    font-family: 'Poppins', sans-serif;
   }
 }
 
-/* === Themed backgrounds === */
+/* === Global background images === */
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
-  background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 40%, #ede9fe 100%);
+  background-image: url('./assets/images/light_mode_bg.png');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
   background-attachment: fixed;
+  background-color: #f5f7fb;
 }
 
 .dark body {
-  background: linear-gradient(135deg, #1a1a1a 0%, #222222 100%);
-  background-attachment: fixed;
+  background-image: url('./assets/images/dark_mode.png');
+  background-color: #111111;
 }
 
 /* Make the app wrapper transparent so body gradient shows through */
