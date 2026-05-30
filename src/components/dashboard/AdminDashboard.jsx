@@ -4,6 +4,8 @@ import StatsCard from '@/components/StatsCard';
 import { Link } from 'react-router-dom';
 import { Users, CheckSquare, Clock, TrendingUp, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminDashboard({ user }) {
@@ -43,11 +45,11 @@ export default function AdminDashboard({ user }) {
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Team Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Overview of your team's progress and pending actions.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Team Dashboard"
+        description="Overview of your team's progress and pending actions."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard label="Team Members" value={teamMembers.length} icon={Users} color="primary" />
@@ -130,6 +132,6 @@ export default function AdminDashboard({ user }) {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

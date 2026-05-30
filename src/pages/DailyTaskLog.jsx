@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -175,17 +177,13 @@ export default function DailyTaskLog() {
   if (!user) return null;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Daily Task Log</h1>
-          <p className="text-muted-foreground text-sm mt-1 flex items-center gap-1.5">
-            <Calendar className="w-4 h-4" />
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <PageShell>
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          title="Daily Task Log"
+          description={new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        />
+        <div className="flex items-center gap-3 flex-shrink-0">
           {selectedIds.size > 0 && (
             <Button onClick={() => setShowBulkLog(true)} variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/5">
               <Layers className="w-4 h-4" /> Log {selectedIds.size} Selected
@@ -489,6 +487,6 @@ export default function DailyTaskLog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

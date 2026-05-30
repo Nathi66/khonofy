@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Users, CheckSquare, Clock, TrendingUp } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 
 export default function TeamManagement() {
   const { data: user } = useCurrentUser();
@@ -49,11 +51,11 @@ export default function TeamManagement() {
   const staffMembers = teamMembers.filter(m => m.role === 'staff' || !m.role);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-        <p className="text-muted-foreground text-sm mt-1">Overview of your team members, tasks, and timesheet statuses.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Team Management"
+        description="Overview of your team members, tasks, and timesheet statuses."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-card rounded-xl border border-border p-4 text-center">
@@ -158,6 +160,6 @@ export default function TeamManagement() {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

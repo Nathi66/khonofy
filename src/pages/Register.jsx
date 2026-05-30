@@ -24,16 +24,25 @@ export default function Register() {
     }
   }, [authChecked, isAuthenticated, navigate]);
 
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
+  const trimmedConfirm = confirmPassword.trim();
+  const isFormComplete = Boolean(trimmedEmail && trimmedPassword && trimmedConfirm);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (password !== confirmPassword) {
+    if (!trimmedEmail || !trimmedPassword || !trimmedConfirm) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+    if (trimmedPassword !== trimmedConfirm) {
       setError("Passwords do not match");
       return;
     }
     setLoading(true);
     try {
-      await base44.auth.register({ email, password, fullName: "", phone: "" });
+      await base44.auth.register({ email: trimmedEmail, password: trimmedPassword, fullName: "", phone: "" });
       await checkUserAuth();
       navigate("/", { replace: true });
     } catch (err) {
@@ -73,7 +82,7 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
@@ -89,7 +98,7 @@ export default function Register() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
@@ -105,7 +114,7 @@ export default function Register() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="confirm">Confirm Password</Label>
+            <Label htmlFor="confirm">Confirm Password <span className="text-destructive">*</span></Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
@@ -120,7 +129,7 @@ export default function Register() {
               />
             </div>
           </div>
-          <Button type="submit" className="w-full h-12 rounded-full font-medium" disabled={loading}>
+          <Button type="submit" className="w-full h-12 rounded-full font-medium" disabled={loading || !isFormComplete}>
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Clock, Send, ChevronDown, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 function getWeekBounds(offset = 0) {
@@ -96,11 +98,12 @@ export default function TimesheetManagement() {
   const canSubmit = totalHours > 0 && (!currentSheet || currentSheet.status === 'draft' || currentSheet.status === 'rejected');
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">My Timesheets</h1>
-        <p className="text-muted-foreground text-sm mt-1">Review and submit your weekly time for approval.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="My Timesheets"
+        description="Review and submit your weekly time for approval."
+      />
+      <div className="max-w-3xl space-y-6">
 
       {/* Week selector */}
       <div className="bg-card rounded-xl border border-border p-4">
@@ -232,7 +235,8 @@ export default function TimesheetManagement() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }
 

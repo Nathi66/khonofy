@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Input } from '@/components/ui/input';
 import { User, Mail, Phone, Building2, Shield, Save, Check } from 'lucide-react';
 
@@ -48,11 +50,12 @@ export default function Profile() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your account information and preferences.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="My Profile"
+        description="Manage your account information and preferences."
+      />
+      <div className="max-w-2xl space-y-6">
 
       {/* Avatar + role */}
       <div className="bg-card rounded-xl border border-border p-6">
@@ -161,6 +164,7 @@ export default function Profile() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   );
 }

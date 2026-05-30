@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -148,34 +150,35 @@ export default function CalendarView() {
   const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-border bg-card flex items-center justify-between gap-4 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-primary" /> Calendar
-          </h1>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(weekOffset - 1)}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)} className="h-8 px-3 text-xs">
-              Today
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(weekOffset + 1)}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="flex flex-col min-h-full">
+      <PageShell className="pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <PageHeader
+            title="Calendar"
+            description="View and log time across your week."
+            icon={CalendarDays}
+          />
+          <Button onClick={() => { setForm(EMPTY_FORM); setShowManualForm(true); }} className="gap-2 flex-shrink-0">
+            <Plus className="w-4 h-4" /> Add Entry
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(weekOffset - 1)}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)} className="h-8 px-3 text-xs">
+            Today
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset(weekOffset + 1)}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
           <span className="text-sm font-medium text-muted-foreground">
             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             {' – '}
             {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
-        <Button onClick={() => { setForm(EMPTY_FORM); setShowManualForm(true); }} className="gap-2">
-          <Plus className="w-4 h-4" /> Add Entry
-        </Button>
-      </div>
+      </PageShell>
 
       {/* Templates row */}
       {templates.length > 0 && (

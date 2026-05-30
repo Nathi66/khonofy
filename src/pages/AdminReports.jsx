@@ -6,6 +6,8 @@ import StatsCard from '@/components/StatsCard';
 import { Clock, Users, TrendingUp, CheckSquare, CalendarDays } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -73,11 +75,11 @@ export default function AdminReports() {
     }));
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Department Reports</h1>
-        <p className="text-muted-foreground text-sm mt-1">Hours tracked and productivity metrics across all departments.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Department Reports"
+        description="Hours tracked and productivity metrics across all departments."
+      />
 
       {/* Date range filter */}
       <div className="bg-card rounded-xl border border-border p-4">
@@ -180,6 +182,6 @@ export default function AdminReports() {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

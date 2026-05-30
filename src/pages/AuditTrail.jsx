@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Search, Activity, Filter } from 'lucide-react';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 
 const ACTION_COLORS = {
   'Created task': 'bg-blue-100 text-blue-700',
@@ -43,14 +45,12 @@ export default function AuditTrail() {
   });
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Activity className="w-6 h-6 text-primary" />
-          Audit Trail
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">Complete log of all user actions across the organization.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Audit Trail"
+        description="Complete log of all user actions across the organization."
+        icon={Activity}
+      />
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -119,6 +119,6 @@ export default function AuditTrail() {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

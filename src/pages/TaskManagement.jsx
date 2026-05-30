@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -130,16 +132,16 @@ export default function TaskManagement() {
   });
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Task Management</h1>
-          <p className="text-muted-foreground text-sm mt-1">Create, assign, and track tasks for your team.</p>
-        </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> New Task
-        </Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Task Management"
+        description="Create, assign, and track tasks for your team."
+        actions={
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="w-4 h-4" /> New Task
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -292,6 +294,6 @@ export default function TaskManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageShell>
   );
 }

@@ -5,6 +5,8 @@ import TaskCard from '@/components/TaskCard';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Clock, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 
 export default function StaffDashboard({ user }) {
   const today = new Date().toISOString().split('T')[0];
@@ -33,11 +35,11 @@ export default function StaffDashboard({ user }) {
   const pendingTimesheet = timesheets.find(t => t.status === 'pending');
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Good {getGreeting()}, {user.full_name?.split(' ')[0] || 'there'} 👋</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Here's your work summary for today.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={`Good ${getGreeting()}, ${user.full_name?.split(' ')[0] || 'there'} 👋`}
+        description="Here's your work summary for today."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard label="Hours Today" value={hoursToday.toFixed(1)} icon={Clock} color="primary" />
@@ -98,7 +100,7 @@ export default function StaffDashboard({ user }) {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

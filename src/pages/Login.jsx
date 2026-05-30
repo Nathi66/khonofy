@@ -25,12 +25,20 @@ export default function Login() {
     }
   }, [authChecked, isAuthenticated, navigate]);
 
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
+  const isFormComplete = Boolean(trimmedEmail && trimmedPassword);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!trimmedEmail || !trimmedPassword) {
+      setError("Please fill in all required fields.");
+      return;
+    }
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
+      await base44.auth.loginViaEmailPassword(trimmedEmail, trimmedPassword);
       await checkUserAuth();
       navigate("/", { replace: true });
     } catch (err) {
@@ -61,7 +69,7 @@ export default function Login() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
@@ -77,7 +85,7 @@ export default function Login() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
             <div className="relative">
               <Input
                 id="password"
@@ -99,7 +107,7 @@ export default function Login() {
               </button>
             </div>
           </div>
-          <Button type="submit" className="w-full h-12 rounded-full font-medium bg-primary hover:bg-primary/90 text-white" disabled={loading}>
+          <Button type="submit" className="w-full h-12 rounded-full font-medium bg-primary hover:bg-primary/90 text-white" disabled={loading || !isFormComplete}>
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

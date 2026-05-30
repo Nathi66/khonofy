@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -51,20 +53,24 @@ export default function TagManagement() {
   };
 
   if (user?.role !== 'superuser' && user?.role !== 'admin') {
-    return <div className="p-6 text-center text-muted-foreground">Access restricted to admins and super users.</div>;
+    return (
+      <PageShell>
+        <p className="text-center text-muted-foreground">Access restricted to admins and super users.</p>
+      </PageShell>
+    );
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Tag className="w-6 h-6 text-primary" /> Tag Management
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Create and manage tags that staff can use when logging time.</p>
-        </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> New Tag</Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Tag Management"
+        description="Create and manage tags that staff can use when logging time."
+        icon={Tag}
+        actions={
+          <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> New Tag</Button>
+        }
+      />
+      <div className="max-w-3xl space-y-6">
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="grid grid-cols-[auto_1fr_1fr_80px] gap-4 px-4 py-3 border-b border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -156,6 +162,7 @@ export default function TagManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </PageShell>
   );
 }

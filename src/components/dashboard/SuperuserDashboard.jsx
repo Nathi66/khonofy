@@ -4,6 +4,8 @@ import StatsCard from '@/components/StatsCard';
 import { Link } from 'react-router-dom';
 import { Users, Building2, Clock, AlertCircle, ArrowRight, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -55,11 +57,11 @@ export default function SuperuserDashboard({ user }) {
   }));
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Global Dashboard</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Organization-wide overview of tasks, teams, and productivity.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Global Dashboard"
+        description="Organization-wide overview of tasks, teams, and productivity."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard label="Total Staff" value={allUsers.filter(u => u.role === 'staff').length} icon={Users} color="primary" />
@@ -149,6 +151,6 @@ export default function SuperuserDashboard({ user }) {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

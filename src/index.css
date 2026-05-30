@@ -32,21 +32,13 @@
     --chart-5: 271 76% 53%;
     --radius: 0.625rem;
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 20%;
-    --sidebar-primary: 238 68% 55%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 4 100% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 93%;
-    --sidebar-accent-foreground: 222 47% 20%;
-    --sidebar-border: 220 13% 87%;
-    --sidebar-ring: 238 68% 55%;
-    --sidebar-background: 224 44% 12%;
-    --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 238 68% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 44% 18%;
-    --sidebar-accent-foreground: 220 20% 95%;
-    --sidebar-border: 224 44% 20%;
-    --sidebar-ring: 238 68% 55%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 4 100% 38%;
   }
 
   .dark {
@@ -131,6 +123,24 @@ body {
   background-color: rgba(81, 81, 81, 0.60) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* Light mode sidebar: pure white background, black text */
+html:not(.dark) aside.bg-sidebar {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html:not(.dark) aside.bg-sidebar .text-sidebar-foreground,
+html:not(.dark) aside.bg-sidebar nav a:not([class*='bg-primary']),
+html:not(.dark) aside.bg-sidebar nav a:not([class*='bg-primary']) svg,
+html:not(.dark) aside.bg-sidebar p,
+html:not(.dark) aside.bg-sidebar button {
+  color: #000000;
+}
+
+html:not(.dark) aside.bg-sidebar .text-sidebar-foreground\/50 {
+  color: rgba(0, 0, 0, 0.55);
 }
 
 /* Red hover override for sidebar nav links */

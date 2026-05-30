@@ -4,6 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
+import PageHeader from '@/components/PageHeader';
+import PageShell from '@/components/PageShell';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, Clock, ChevronDown, User, Calendar } from 'lucide-react';
@@ -74,11 +76,11 @@ export default function TimesheetReview() {
   const pendingCount = timesheets.filter(t => t.status === 'pending').length;
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Timesheet Review</h1>
-        <p className="text-muted-foreground text-sm mt-1">Review and approve or reject your team's timesheet submissions.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Timesheet Review"
+        description="Review and approve or reject your team's timesheet submissions."
+      />
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
@@ -229,7 +231,7 @@ export default function TimesheetReview() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
 
