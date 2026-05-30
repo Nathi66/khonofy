@@ -1,0 +1,7 @@
+{
+  "type": "outlook",
+  "scopes": [
+    "Mail.Send",
+    "User.Read"
+  ]
+}
