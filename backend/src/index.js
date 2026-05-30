@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { prisma } from './lib/prisma.js';
+import { base44, isBase44Configured } from './lib/base44.js';
 import {
   comparePassword,
   createResetToken,
@@ -314,6 +315,24 @@ app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.get('/health/base44', async (_req, res) => {
+  if (!isBase44Configured()) {
+    return res.status(503).json({
+      ok: false,
+      configured: false,
+      message: 'Set BASE44_APP_ID and BASE44_API_KEY in backend/.env',
+    });
+  }
+
+  try {
+    await base44.entities.User.list(undefined, 1);
+    return res.json({ ok: true, configured: true });
+  } catch (error) {
+    const message = error?.response?.data?.message || error?.message || 'Base44 request failed';
+    return res.status(502).json({ ok: false, configured: true, message });
+  }
+});
 
 app.post('/api/auth/register', async (req, res) => {
   try {

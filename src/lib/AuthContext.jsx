@@ -23,7 +23,8 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       setAuthChecked(true);
       setIsLoadingAuth(false);
-      if (error.status !== 401) {
+      const status = error?.status ?? error?.response?.status;
+      if (status !== 401) {
         setAuthError({
           type: 'auth_required',
           message: error.message || 'Authentication required',

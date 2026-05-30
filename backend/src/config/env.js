@@ -12,4 +12,8 @@ export const env = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || 'noreply@khonofy.local',
+  base44AppId: process.env.BASE44_APP_ID || '',
+  base44ApiKey: process.env.BASE44_API_KEY || '',
+  base44ServerUrl: process.env.BASE44_SERVER_URL || 'https://base44.app',
+  base44AppBaseUrl: process.env.BASE44_APP_BASE_URL || '',
 };

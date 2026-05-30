@@ -1,6 +1,35 @@
 # Khonofy Backend
 
-## Environment
+## Base44 SDK
+
+Install (already in `package.json`): `@base44/sdk`
+
+Add to `backend/.env`:
+
+```env
+BASE44_APP_ID=your_app_id_here
+BASE44_API_KEY=your_api_key_here
+BASE44_APP_BASE_URL=https://your-app-name.base44.app
+BASE44_SERVER_URL=https://base44.app
+```
+
+Use the **same** App ID and API key as in the frontend `.env.local` (`VITE_BASE44_*` variables).
+
+Server client: `backend/src/lib/base44.js`
+
+```javascript
+import { createClient } from '@base44/sdk';
+
+const base44 = createClient({
+  appId: process.env.BASE44_APP_ID,
+  headers: { api_key: process.env.BASE44_API_KEY },
+  appBaseUrl: process.env.BASE44_APP_BASE_URL,
+});
+```
+
+Health check: `GET http://localhost:3001/health/base44`
+
+## Environment (local API — optional)
 
 Create `backend/.env` with:
 

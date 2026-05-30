@@ -3,7 +3,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   LayoutDashboard, ClipboardList, Clock, Users,
   CheckSquare, FileText, User, LogOut, ChevronRight,
-  CalendarDays, BarChart3, Tag
+  CalendarDays, BarChart3, Tag, Target
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
@@ -20,6 +20,7 @@ const ADMIN_NAV = [
   { path: '/tasks', label: 'Task Management', icon: CheckSquare },
   { path: '/timesheets/review', label: 'Timesheet Review', icon: Clock },
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
+  { path: '/dept-summary', label: 'Hours vs Estimates', icon: Target },
   { path: '/tags', label: 'Tag Management', icon: Tag },
 ];
 

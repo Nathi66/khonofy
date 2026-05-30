@@ -13,12 +13,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+    // Base44 SDK calls https://base44.app directly. Uncomment to proxy a local API instead:
+    // proxy: {
+    //   '/api': { target: 'http://localhost:3001', changeOrigin: true },
+    // },
   },
   plugins: [
     react(),

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +43,7 @@ export default function Login() {
       await checkUserAuth();
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message || "Invalid email or password");
+      setError(getApiErrorMessage(err, "Invalid email or password"));
     } finally {
       setLoading(false);
     }
@@ -122,7 +123,7 @@ export default function Login() {
             <button type="button" className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center" aria-label="Continue with Google">
               <GoogleIcon className="w-5 h-5" />
             </button>
-            <button type="button" className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center" aria-label="Continue with Microsoft">
+            <button type="button" onClick={() => base44.auth.loginWithProvider('microsoft', '/')} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:shadow-md transition-shadow" aria-label="Continue with Microsoft">
               <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <rect x="1" y="1" width="9" height="9" fill="#F25022" />
                 <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
