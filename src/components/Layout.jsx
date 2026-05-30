@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ThemeToggleFAB from '@/components/ThemeToggleFAB';
+
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -168,7 +168,6 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-      <ThemeToggleFAB />
     </div>
   );
 }

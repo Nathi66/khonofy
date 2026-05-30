@@ -23,6 +23,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import ThemeToggleFAB from './components/ThemeToggleFAB';
 
 function App() {
   return (
@@ -55,6 +56,7 @@ function App() {
             </Routes>
           </Router>
           <Toaster />
+          <ThemeToggleFAB />
         </QueryClientProvider>
       </AuthProvider>
     </ThemeProvider>
