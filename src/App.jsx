@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import CalendarView from './pages/CalendarView';
 import TagManagement from './pages/TagManagement';
 import AdminReports from './pages/AdminReports';
+import ThemeToggleFAB from './components/ThemeToggleFAB';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -45,6 +46,8 @@ const AuthenticatedApp = () => {
 
   // Render the main app
   return (
+    <>
+    <ThemeToggleFAB />
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
@@ -61,6 +64,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+    </>  
   );
 };
 
