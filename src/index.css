@@ -12,19 +12,19 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 238 68% 55%;
+    --primary: 4 100% 38%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 14% 91%;
     --secondary-foreground: 222 47% 11%;
     --muted: 220 14% 93%;
     --muted-foreground: 220 9% 46%;
-    --accent: 173 58% 39%;
+    --accent: 4 100% 38%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 87%;
     --input: 220 13% 87%;
-    --ring: 238 68% 55%;
+    --ring: 4 100% 38%;
     --chart-1: 238 68% 55%;
     --chart-2: 173 58% 39%;
     --chart-3: 43 96% 56%;
@@ -56,19 +56,19 @@
     --card-foreground: 220 20% 97%;
     --popover: 0 0% 32%;
     --popover-foreground: 220 20% 97%;
-    --primary: 238 68% 65%;
+    --primary: 4 100% 50%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 38%;
     --secondary-foreground: 220 20% 97%;
     --muted: 0 0% 38%;
     --muted-foreground: 220 9% 65%;
-    --accent: 173 58% 45%;
+    --accent: 4 100% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 40%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 40%;
     --input: 0 0% 40%;
-    --ring: 238 68% 65%;
+    --ring: 4 100% 50%;
     --sidebar-background: 0 0% 32%;
     --sidebar-foreground: 220 20% 88%;
     --sidebar-primary: 238 68% 65%;
@@ -111,15 +111,24 @@ body {
 
 /* === Widget / Card glass effect === */
 .bg-card {
-  background-color: rgba(255, 255, 255, 0.72) !important;
+  background-color: rgba(255, 255, 255, 0.60) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .dark .bg-card {
-  background-color: rgba(81, 81, 81, 0.72) !important;
+  background-color: rgba(81, 81, 81, 0.60) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* Red hover override for sidebar nav links */
+aside nav a:not([class*='bg-primary']):hover {
+  background-color: rgba(193, 13, 0, 0.10) !important;
+  color: #c10d00 !important;
+}
+aside nav a:not([class*='bg-primary']):hover svg {
+  color: #c10d00 !important;
 }
 
 /* Popover/Select dropdowns need near-solid bg */
