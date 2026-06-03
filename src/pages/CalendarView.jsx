@@ -132,9 +132,7 @@ export default function CalendarView() {
     queryKey: ['calendarProjects', user?.department_id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser') return base44.entities.Project.list();
-      if (user.department_id) return base44.entities.Project.filter({ department_id: user.department_id });
-      return base44.entities.Project.filter({ is_active: true });
+      return base44.entities.Project.list();
     },
     enabled: !!user,
   });
@@ -144,6 +142,19 @@ export default function CalendarView() {
     queryFn: () => base44.entities.Client.list(),
     enabled: !!user,
   });
+
+  const projectsById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project])),
+    [projects]
+  );
+
+  const hydratedWeekEntries = useMemo(
+    () => weekEntries.map((entry) => ({
+      ...entry,
+      project_color: entry.project_color || projectsById.get(entry.project_id)?.color || '',
+    })),
+    [projectsById, weekEntries]
+  );
 
   const setCalendarEntries = (updater) => {
     queryClient.setQueryData(['calendarEntries', user?.id, weekStart, weekEnd], updater);
@@ -169,6 +180,10 @@ export default function CalendarView() {
     queryClient.invalidateQueries({ queryKey: ['weekEntries'] });
     queryClient.invalidateQueries({ queryKey: ['deptTimeEntries'] });
     queryClient.invalidateQueries({ queryKey: ['todayEntries'] });
+    queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
+    queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+    queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+    queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
   };
 
   const createEntry = useMutation({
@@ -492,7 +507,7 @@ export default function CalendarView() {
         <div ref={scrollRef} className="min-h-0 flex-1">
           <CalendarWeekGrid
             dates={weekDates}
-            entries={weekEntries}
+            entries={hydratedWeekEntries}
             previewSelection={previewSelection}
             currentTime={weekDates.some((date) => isSameDay(date, currentTime)) ? currentTime : null}
             onPointerDownCreate={startCreateSelection}

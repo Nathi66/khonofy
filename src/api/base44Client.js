@@ -4,21 +4,36 @@ import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/auth-storage';
  * Local Khonofy API (Express + PostgreSQL via DATABASE_URL).
  * Vite proxies /api → http://localhost:3001 in development.
  */
-const API_BASE = import.meta.env.VITE_API_URL || '';
+// @ts-ignore
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+/**
+ * @typedef {Record<string, string | number | boolean | null | undefined>} QueryParams
+ * @typedef {{ method?: string, body?: unknown, query?: QueryParams, auth?: boolean }} RequestOptions
+ * @typedef {Error & { status?: number, data?: unknown }} ApiError
+ */
+
+/**
+ * @param {string} path
+ * @param {QueryParams} [query]
+ */
 function buildUrl(path, query = {}) {
   const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const search = new URLSearchParams();
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
-      search.set(key, value);
+      search.set(key, String(value));
     }
   });
   const queryString = search.toString();
   return `${base}${normalizedPath}${queryString ? `?${queryString}` : ''}`;
 }
 
+/**
+ * @param {string} path
+ * @param {RequestOptions} [options]
+ */
 async function request(path, { method = 'GET', body, query, auth = true } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getAuthToken();
@@ -36,9 +51,9 @@ async function request(path, { method = 'GET', body, query, auth = true } = {}) 
     : await response.text();
 
   if (!response.ok) {
-    const error = new Error(
+    const error = /** @type {ApiError} */ (new Error(
       typeof data === 'object' && data?.message ? data.message : data || 'Request failed'
-    );
+    ));
     error.status = response.status;
     error.data = data;
     throw error;
@@ -47,17 +62,33 @@ async function request(path, { method = 'GET', body, query, auth = true } = {}) 
   return data;
 }
 
+/**
+ * @param {string | QueryParams | undefined} sortOrOptions
+ * @param {number | undefined} limit
+ * @returns {QueryParams}
+ */
 function normalizeQueryParams(sortOrOptions, limit) {
   if (sortOrOptions && typeof sortOrOptions === 'object' && !Array.isArray(sortOrOptions)) {
     return sortOrOptions;
   }
 
+  /** @type {QueryParams} */
   const query = {};
   if (typeof sortOrOptions === 'string' && sortOrOptions) query.sort = sortOrOptions;
   if (typeof limit === 'number') query.limit = limit;
   return query;
 }
 
+/**
+ * @param {string} resource
+ * @returns {{
+ *   list: (sortOrOptions?: string | QueryParams, limit?: number) => Promise<any>,
+ *   filter: (filters?: QueryParams) => Promise<any>,
+ *   create: (data: any) => Promise<any>,
+ *   update: (id: string, data: any) => Promise<any>,
+ *   delete: (id: string) => Promise<any>,
+ * }}
+ */
 function createEntity(resource) {
   const path = `/api/${resource}`;
   return {
@@ -78,6 +109,23 @@ const calendar = {
         user_id: userId,
       },
     }),
+};
+
+const ai = {
+  chat: (messages) =>
+    request('/api/ai/chat', {
+      method: 'POST',
+      body: { messages },
+    }),
+  logTicket: (ticketDraft) =>
+    request('/api/ai/log-ticket', {
+      method: 'POST',
+      body: { ticketDraft },
+    }),
+};
+
+const media = {
+  imagekitAuth: () => request('/api/imagekit/auth'),
 };
 
 const auth = {
@@ -134,6 +182,8 @@ const auth = {
 export const base44 = {
   auth,
   calendar,
+  ai,
+  media,
   entities: {
     User: createEntity('users'),
     Task: createEntity('tasks'),

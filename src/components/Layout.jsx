@@ -30,6 +30,7 @@ const ADMIN_NAV = [
 const SUPERUSER_NAV = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/users', label: 'User Management', icon: UserRoundPlus },
+  { path: '/timesheets/feedback', label: 'Timesheet Feedback', icon: Clock },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
   { path: '/projects', label: 'Projects', icon: FolderKanban },

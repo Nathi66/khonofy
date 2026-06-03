@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -8,9 +8,26 @@ import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Clock, ChevronDown, Calendar } from 'lucide-react';
+import TimesheetEntriesPanel from '@/components/timesheets/TimesheetEntriesPanel';
+import { CheckCircle2, XCircle, Clock, ChevronDown, Calendar, AlertCircle, ClipboardCheck } from 'lucide-react';
 
 const STATUS_TABS = ['pending', 'approved', 'rejected', 'all'];
+
+const STATUS_STYLES = {
+  draft: 'bg-slate-100 text-slate-600',
+  pending: 'bg-amber-100 text-amber-700',
+  approved: 'bg-emerald-100 text-emerald-700',
+  rejected: 'bg-red-100 text-red-600',
+};
+
+function invalidateTimesheetQueries(queryClient) {
+  queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+  queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
+  queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+  queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
+  queryClient.invalidateQueries({ queryKey: ['recentLogs'] });
+  queryClient.invalidateQueries({ queryKey: ['activityLogs'] });
+}
 
 export default function TimesheetReview() {
   const { data: user } = useCurrentUser();
@@ -20,38 +37,49 @@ export default function TimesheetReview() {
   const [rejectDialog, setRejectDialog] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
 
+  const isAdmin = user?.role === 'admin';
+
   const { data: timesheets = [], isLoading } = useQuery({
     queryKey: ['teamTimesheets', user?.department_id],
     queryFn: () => user?.department_id
       ? base44.entities.Timesheet.filter({ department_id: user.department_id })
-      : base44.entities.Timesheet.list(),
-    enabled: !!user,
+      : [],
+    enabled: !!user && isAdmin,
   });
 
   const { data: entriesBySheet = {} } = useQuery({
-    queryKey: ['allEntries'],
+    queryKey: ['allEntries', user?.department_id],
     queryFn: async () => {
       const entries = await base44.entities.TimeEntry.list();
-      return entries.reduce((acc, e) => {
-        if (e.timesheet_id) {
-          if (!acc[e.timesheet_id]) acc[e.timesheet_id] = [];
-          acc[e.timesheet_id].push(e);
+      return entries.reduce((acc, entry) => {
+        if (entry.timesheet_id) {
+          if (!acc[entry.timesheet_id]) acc[entry.timesheet_id] = [];
+          acc[entry.timesheet_id].push(entry);
         }
         return acc;
       }, {});
     },
-    enabled: !!user,
+    enabled: !!user && isAdmin,
   });
+
+  const sortedTimesheets = useMemo(() => {
+    return [...timesheets].sort((left, right) => {
+      const leftDate = new Date(left.submitted_at || left.created_date || left.week_start);
+      const rightDate = new Date(right.submitted_at || right.created_date || right.week_start);
+      return rightDate - leftDate;
+    });
+  }, [timesheets]);
 
   const approveMutation = useMutation({
     mutationFn: (id) => base44.entities.Timesheet.update(id, {
       status: 'approved',
       reviewed_by: user.id,
       reviewed_by_name: user.full_name,
+      admin_notes: '',
     }),
     onSuccess: async (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
-      const ts = timesheets.find(t => t.id === id);
+      invalidateTimesheetQueries(queryClient);
+      const ts = timesheets.find((item) => item.id === id);
       if (user) await logActivity(user, 'Approved timesheet', 'Timesheet', id, `${ts?.user_name} — Week of ${ts?.week_start}`);
     },
   });
@@ -64,27 +92,42 @@ export default function TimesheetReview() {
       reviewed_by_name: user.full_name,
     }),
     onSuccess: async (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
-      const ts = timesheets.find(t => t.id === id);
+      invalidateTimesheetQueries(queryClient);
+      const ts = timesheets.find((item) => item.id === id);
       if (user) await logActivity(user, 'Rejected timesheet', 'Timesheet', id, `${ts?.user_name} — ${rejectNote}`);
       setRejectDialog(null);
       setRejectNote('');
     },
   });
 
-  const filtered = timesheets.filter(t => activeTab === 'all' || t.status === activeTab);
-  const pendingCount = timesheets.filter(t => t.status === 'pending').length;
+  const filtered = sortedTimesheets.filter((timesheet) => activeTab === 'all' || timesheet.status === activeTab);
+  const pendingCount = timesheets.filter((timesheet) => timesheet.status === 'pending').length;
+  const approvedCount = timesheets.filter((timesheet) => timesheet.status === 'approved').length;
+  const rejectedCount = timesheets.filter((timesheet) => timesheet.status === 'rejected').length;
+
+  if (!isAdmin) {
+    return (
+      <PageShell>
+        <p className="text-center text-muted-foreground">Access restricted to admins.</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>
       <PageHeader
         title="Timesheet Review"
-        description="Review and approve or reject your team's timesheet submissions."
+        description="Open a submitted staff timesheet, review every task and hour, then approve or reject it with feedback."
       />
 
-      {/* Tabs */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <SummaryCard label="Pending Review" value={pendingCount} icon={AlertCircle} tone="amber" />
+        <SummaryCard label="Approved" value={approvedCount} icon={CheckCircle2} tone="emerald" />
+        <SummaryCard label="Rejected" value={rejectedCount} icon={XCircle} tone="red" />
+      </div>
+
       <div className="flex gap-2 flex-wrap">
-        {STATUS_TABS.map(tab => (
+        {STATUS_TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -95,127 +138,128 @@ export default function TimesheetReview() {
             }`}
           >
             {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            {tab === 'pending' && pendingCount > 0 && (
-              <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{pendingCount}</span>
-            )}
+            {tab === 'pending' && pendingCount > 0 ? (
+              <span className="ml-2 rounded-full bg-red-500 px-1.5 py-0.5 text-xs text-white">{pendingCount}</span>
+            ) : null}
           </button>
         ))}
       </div>
 
-      {/* List */}
-      {isLoading && <p className="text-center text-muted-foreground text-sm py-8">Loading timesheets...</p>}
-      <div className="space-y-3">
-        {filtered.map(ts => {
-          const entries = entriesBySheet[ts.id] || [];
-          const isOpen = expanded === ts.id;
+      {isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading timesheets...</p> : null}
+
+      <div className="space-y-4">
+        {filtered.map((timesheet) => {
+          const entries = entriesBySheet[timesheet.id] || [];
+          const isOpen = expanded === timesheet.id;
           return (
-            <div key={ts.id} className="bg-card rounded-xl border border-border overflow-hidden">
-              <div
-                className="p-4 cursor-pointer hover:bg-muted/20 transition-colors"
-                onClick={() => setExpanded(isOpen ? null : ts.id)}
+            <div key={timesheet.id} className="overflow-hidden rounded-xl border border-border bg-card">
+              <button
+                type="button"
+                className="w-full p-5 text-left transition-colors hover:bg-muted/20"
+                onClick={() => setExpanded(isOpen ? null : timesheet.id)}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-primary font-semibold text-sm">
-                        {(ts.user_name || 'U')[0].toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">{ts.user_name || 'Team Member'}</p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(ts.week_start).toLocaleDateString()} – {new Date(ts.week_end).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {ts.total_hours || 0}h total
-                        </span>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                        {(timesheet.user_name || 'U')[0].toUpperCase()}
                       </div>
-                      {ts.admin_notes && ts.status === 'rejected' && (
-                        <p className="text-xs text-red-600 mt-1">Reason: {ts.admin_notes}</p>
-                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{timesheet.user_name || 'Team Member'}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(timesheet.week_start).toLocaleDateString()} - {new Date(timesheet.week_end).toLocaleDateString()}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {timesheet.total_hours || 0}h total
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <ClipboardCheck className="h-3 w-3" />
+                            {entries.length} entries
+                          </span>
+                        </div>
+                        {timesheet.status === 'rejected' && timesheet.admin_notes ? (
+                          <p className="mt-2 text-xs text-red-600">Rejection note: {timesheet.admin_notes}</p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <StatusBadge status={ts.status} />
-                    {ts.status === 'pending' && (
-                      <div className="flex gap-1">
+
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={timesheet.status} />
+                    {timesheet.status === 'pending' ? (
+                      <>
                         <Button
                           size="sm"
                           className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                          onClick={(e) => { e.stopPropagation(); approveMutation.mutate(ts.id); }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            approveMutation.mutate(timesheet.id);
+                          }}
                           disabled={approveMutation.isPending}
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Approve
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
-                          onClick={(e) => { e.stopPropagation(); setRejectDialog(ts); }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setRejectDialog(timesheet);
+                          }}
                         >
-                          <XCircle className="w-3.5 h-3.5" /> Reject
+                          <XCircle className="h-3.5 w-3.5" />
+                          Reject
                         </Button>
-                      </div>
-                    )}
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      </>
+                    ) : null}
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </div>
-              </div>
+              </button>
 
-              {isOpen && entries.length > 0 && (
-                <div className="border-t border-border bg-muted/20 px-4 pb-4 pt-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Time Entries</p>
-                  <div className="space-y-1.5">
-                    {entries.map(e => (
-                      <div key={e.id} className="flex items-start justify-between py-2 px-3 rounded-lg bg-background">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{e.task_title || 'Task'}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <span>{new Date(e.date).toLocaleDateString()}</span>
-                            {e.description && <span>· {e.description}</span>}
-                          </div>
-                        </div>
-                        <span className="text-sm font-semibold text-primary ml-4 flex-shrink-0">{e.hours}h</span>
-                      </div>
-                    ))}
+              {isOpen ? (
+                <div className="border-t border-border bg-muted/20 px-5 pb-5 pt-4">
+                  <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <MetaTile label="Submitted By" value={timesheet.user_name || 'Unknown'} />
+                    <MetaTile label="Submitted On" value={timesheet.submitted_at ? new Date(timesheet.submitted_at).toLocaleString() : 'Not submitted'} />
+                    <MetaTile label="Department" value={timesheet.department_id || '—'} />
                   </div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time Entries</p>
+                  <TimesheetEntriesPanel entries={entries} />
                 </div>
-              )}
-              {isOpen && entries.length === 0 && (
-                <div className="border-t border-border bg-muted/20 px-4 py-3">
-                  <p className="text-sm text-muted-foreground">No linked time entries found.</p>
-                </div>
-              )}
+              ) : null}
             </div>
           );
         })}
-        {filtered.length === 0 && !isLoading && (
-          <div className="text-center py-12 bg-card rounded-xl border border-border">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-            <p className="font-semibold text-foreground">All clear!</p>
-            <p className="text-muted-foreground text-sm">No timesheets in this category.</p>
+
+        {!filtered.length && !isLoading ? (
+          <div className="rounded-xl border border-border bg-card py-12 text-center">
+            <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-emerald-400" />
+            <p className="font-semibold text-foreground">No timesheets here yet</p>
+            <p className="text-sm text-muted-foreground">Submitted staff timesheets will appear here for review.</p>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Reject Dialog */}
       <Dialog open={!!rejectDialog} onOpenChange={() => { setRejectDialog(null); setRejectNote(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reject Timesheet</DialogTitle>
           </DialogHeader>
           <div className="py-2">
-            <p className="text-sm text-muted-foreground mb-3">
-              Rejecting {rejectDialog?.user_name}'s timesheet for week of {rejectDialog && new Date(rejectDialog.week_start).toLocaleDateString()}.
+            <p className="mb-3 text-sm text-muted-foreground">
+              Rejecting {rejectDialog?.user_name}'s timesheet for week of {rejectDialog ? new Date(rejectDialog.week_start).toLocaleDateString() : ''}.
             </p>
-            <label className="text-sm font-medium mb-1.5 block">Reason for rejection (optional)</label>
+            <label className="mb-1.5 block text-sm font-medium">Reason for rejection</label>
             <Textarea
               placeholder="Explain why this timesheet is being rejected..."
               value={rejectNote}
-              onChange={(e) => setRejectNote(e.target.value)}
+              onChange={(event) => setRejectNote(event.target.value)}
               rows={3}
             />
           </div>
@@ -235,16 +279,45 @@ export default function TimesheetReview() {
   );
 }
 
-function StatusBadge({ status }) {
-  const s = {
-    draft: 'bg-slate-100 text-slate-600',
-    pending: 'bg-amber-100 text-amber-700',
-    approved: 'bg-emerald-100 text-emerald-700',
-    rejected: 'bg-red-100 text-red-600',
+function SummaryCard({ label, value, icon: Icon, tone }) {
+  const colorMap = {
+    amber: 'bg-amber-100 text-amber-700',
+    emerald: 'bg-emerald-100 text-emerald-700',
+    red: 'bg-red-100 text-red-600',
   };
+
   return (
-    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${s[status] || s.draft}`}>
-      {status}
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <div className={`rounded-lg p-2 ${colorMap[tone] || colorMap.amber}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetaTile({ label, value }) {
+  return (
+    <div className="rounded-lg border border-border bg-background px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[status] || STATUS_STYLES.draft}`}>
+      {status === 'pending' ? <AlertCircle className="h-3 w-3" /> : null}
+      {status === 'approved' ? <CheckCircle2 className="h-3 w-3" /> : null}
+      {status === 'rejected' ? <XCircle className="h-3 w-3" /> : null}
+      {status === 'draft' ? <Clock className="h-3 w-3" /> : null}
+      {status === 'pending' ? 'Pending Review' : status}
     </span>
   );
 }

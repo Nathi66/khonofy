@@ -66,9 +66,7 @@ export default function DailyTaskLog() {
     queryKey: ['dailyLogProjects', user?.department_id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser') return base44.entities.Project.list();
-      if (user.department_id) return base44.entities.Project.filter({ department_id: user.department_id });
-      return base44.entities.Project.filter({ is_active: true });
+      return base44.entities.Project.list();
     },
     enabled: !!user,
   });
@@ -87,6 +85,10 @@ export default function DailyTaskLog() {
       queryClient.invalidateQueries({ queryKey: ['todayEntries'] });
       queryClient.invalidateQueries({ queryKey: ['calendarEntries'] });
       queryClient.invalidateQueries({ queryKey: ['weekEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
       if (user) await logActivity(user, 'Logged time', 'TimeEntry', entry.id, `${logForm.hours}h on "${selectedTask?.title}"`);
       // Save template if checked
       if (logForm.saveAsTemplate && selectedTask) {
@@ -138,6 +140,10 @@ export default function DailyTaskLog() {
       queryClient.invalidateQueries({ queryKey: ['todayEntries'] });
       queryClient.invalidateQueries({ queryKey: ['calendarEntries'] });
       queryClient.invalidateQueries({ queryKey: ['weekEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
       if (user) await logActivity(user, 'Bulk logged time', 'TimeEntry', '', `${bulkForm.hours}h × ${selectedIds.size} tasks`);
       setSelectedIds(new Set());
       setShowBulkLog(false);
@@ -176,6 +182,17 @@ export default function DailyTaskLog() {
     };
     if (isLog) setLogForm({ ...logForm, ...nextState });
     else setBulkForm({ ...bulkForm, ...nextState });
+  };
+
+  const buildTaskProjectState = (task) => {
+    const project = projects.find((item) => item.id === task?.project_id);
+    return {
+      project_id: task?.project_id || '',
+      project_name: task?.project_name || '',
+      client_id: project?.client_id || '',
+      client_name: project?.client_name || '',
+      billable: Boolean(project?.is_billable_default),
+    };
   };
 
   const handleLogTime = () => {
@@ -357,7 +374,21 @@ export default function DailyTaskLog() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button size="sm" className="gap-1.5 h-8" onClick={(e) => { e.stopPropagation(); setSelectedTask(task); setLogForm({ hours: '', description: '', date: today, start_time: '09:00', project_id: task.project_id || '', project_name: task.project_name || '', client_id: '', client_name: '', billable: false, tag_id: '', tag_name: '', tag_color: '', saveAsTemplate: false }); }}>
+                    <Button size="sm" className="gap-1.5 h-8" onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTask(task);
+                      setLogForm({
+                        hours: '',
+                        description: '',
+                        date: today,
+                        start_time: '09:00',
+                        ...buildTaskProjectState(task),
+                        tag_id: '',
+                        tag_name: '',
+                        tag_color: '',
+                        saveAsTemplate: false,
+                      });
+                    }}>
                       <Plus className="w-3.5 h-3.5" /> Log Time
                     </Button>
                     <ChevronDown
@@ -463,7 +494,7 @@ export default function DailyTaskLog() {
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Project</label>
                 <select className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background" value={logForm.project_id} onChange={(e) => handleProjectChange(e.target.value, true)}>
                   <option value="">No project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {projects.filter((project) => project.is_active || project.id === logForm.project_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
@@ -537,7 +568,7 @@ export default function DailyTaskLog() {
                 <label className="text-sm font-medium mb-1.5 block">Project</label>
                 <select className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background" value={bulkForm.project_id} onChange={(e) => handleProjectChange(e.target.value, false)}>
                   <option value="">No project</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {projects.filter((project) => project.is_active || project.id === bulkForm.project_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>

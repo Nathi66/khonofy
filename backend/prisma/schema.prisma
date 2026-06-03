@@ -40,6 +40,8 @@ model User {
   email                 String   @unique
   passwordHash          String
   fullName              String?
+  profileImageUrl       String?
+  profileImagePath      String?
   role                  UserRole @default(staff)
   departmentId          String?
   designationId         String?

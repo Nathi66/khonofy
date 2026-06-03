@@ -27,19 +27,23 @@ export default function Login() {
   }, [authChecked, isAuthenticated, navigate]);
 
   const trimmedEmail = email.trim();
-  const trimmedPassword = password.trim();
-  const isFormComplete = Boolean(trimmedEmail && trimmedPassword);
+  const passwordValue = password;
+  const isFormComplete = Boolean(trimmedEmail && passwordValue);
+
+  const handleOAuth = () => {
+    setError("Social sign-in is not available yet. Please use your email and password.");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!trimmedEmail || !passwordValue) {
       setError("Please fill in all required fields.");
       return;
     }
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(trimmedEmail, trimmedPassword);
+      await base44.auth.loginViaEmailPassword(trimmedEmail, passwordValue);
       await checkUserAuth();
       navigate("/", { replace: true });
     } catch (err) {
@@ -51,8 +55,7 @@ export default function Login() {
 
   const errorBanner = error ? (
     <div className="bg-[#5a0000] px-6 py-4 text-center text-white">
-      <p className="text-sm font-semibold uppercase tracking-wide">Incorrect Login Credentials.</p>
-      <p className="text-xs mt-1">Kindly ensure inputs are correct and re-attempt.</p>
+      <p className="text-sm font-semibold uppercase tracking-wide">{error}</p>
     </div>
   ) : null;
 
@@ -120,12 +123,10 @@ export default function Login() {
           </Button>
 
           <div className="mt-4 flex items-center justify-center gap-3">
-            <button type="button" className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center" aria-label="Continue with Google">
+            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with Google (coming soon)">
               <GoogleIcon className="w-5 h-5" />
             </button>
-            <button type="button" onClick={() => base44.auth.loginWithProvider(
-// @ts-ignore
-            'microsoft', '/')} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:shadow-md transition-shadow" aria-label="Continue with Microsoft">
+            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with Microsoft (coming soon)">
               <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <rect x="1" y="1" width="9" height="9" fill="#F25022" />
                 <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
@@ -133,7 +134,7 @@ export default function Login() {
                 <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
               </svg>
             </button>
-            <button type="button" className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center" aria-label="Continue with GitHub">
+            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with GitHub (coming soon)">
               <Github className="w-5 h-5 text-black" />
             </button>
           </div>

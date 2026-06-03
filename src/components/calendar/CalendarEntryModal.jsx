@@ -54,12 +54,17 @@ export default function CalendarEntryModal({
 
   const handleTaskChange = (taskId) => {
     const task = tasks.find((item) => item.id === taskId);
+    const project = projects.find((item) => item.id === task?.project_id);
     setForm((current) => ({
       ...current,
       task_id: taskId,
       task_title: task?.title || current.task_title,
       project_id: task?.project_id || current.project_id,
-      project_name: task?.project_name || current.project_name,
+      project_name: task?.project_name || project?.name || current.project_name,
+      project_color: project?.color || current.project_color || '',
+      client_id: project?.client_id || current.client_id || '',
+      client_name: project?.client_name || current.client_name || '',
+      billable: project ? Boolean(project.is_billable_default) : current.billable,
     }));
   };
 
@@ -173,7 +178,7 @@ export default function CalendarEntryModal({
                 onChange={(event) => handleClientChange(event.target.value)}
               >
                 <option value="">No client</option>
-                {clients.filter((client) => client.is_active).map((client) => (
+                {clients.filter((client) => client.is_active || client.id === form.client_id).map((client) => (
                   <option key={client.id} value={client.id}>{client.name}</option>
                 ))}
               </select>
@@ -188,7 +193,7 @@ export default function CalendarEntryModal({
               >
                 <option value="">No project</option>
                 {projects
-                  .filter((project) => !form.client_id || project.client_id === form.client_id)
+                  .filter((project) => (project.is_active || project.id === form.project_id) && (!form.client_id || project.client_id === form.client_id))
                   .map((project) => (
                     <option key={project.id} value={project.id}>{project.name}</option>
                   ))}

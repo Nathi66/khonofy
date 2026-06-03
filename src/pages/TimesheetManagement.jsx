@@ -73,20 +73,31 @@ export default function TimesheetManagement() {
         total_hours: totalHours,
         status: 'pending',
         submitted_at: new Date().toISOString(),
+        admin_notes: '',
+        reviewed_by: null,
+        reviewed_by_name: '',
       };
+      const linkEntries = async (timesheetId) => {
+        for (const entry of timeEntries) {
+          await base44.entities.TimeEntry.update(entry.id, { timesheet_id: timesheetId });
+        }
+      };
+
       if (currentSheet) {
-        return base44.entities.Timesheet.update(currentSheet.id, payload);
+        const updated = await base44.entities.Timesheet.update(currentSheet.id, payload);
+        await linkEntries(currentSheet.id);
+        return updated;
       }
       const ts = await base44.entities.Timesheet.create(payload);
-      // link entries
-      await Promise.all(timeEntries.map(e =>
-        base44.entities.TimeEntry.update(e.id, { timesheet_id: ts.id })
-      ));
+      await linkEntries(ts.id);
       return ts;
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
       queryClient.invalidateQueries({ queryKey: ['weekEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
       if (user) await logActivity(user, 'Submitted timesheet', 'Timesheet', '', `Week of ${week.start} (${totalHours}h)`);
     },
   });
@@ -100,6 +111,9 @@ export default function TimesheetManagement() {
     },
     onSuccess: async (_updated, timesheet) => {
       queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['teamTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['allTimesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingTimesheets'] });
       if (user) {
         await logActivity(
           user,
@@ -175,6 +189,12 @@ export default function TimesheetManagement() {
             )}
           </div>
         </div>
+
+      {currentSheet?.status === 'pending' && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          This timesheet has new linked changes and is waiting for admin review again.
+        </div>
+      )}
 
         {currentSheet?.admin_notes && currentSheet.status === 'rejected' && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">

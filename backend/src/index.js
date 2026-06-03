@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'node:crypto';
 import { env } from './config/env.js';
 import { prisma } from './lib/prisma.js';
 import { base44, isBase44Configured } from './lib/base44.js';
@@ -19,6 +20,7 @@ import {
   serializeRecord,
   toCamelCase,
 } from './lib/serialize.js';
+import { generateAssistantReply, isAiConfigured } from './lib/ai.js';
 
 const app = express();
 
@@ -49,6 +51,7 @@ const DATE_TIME_FIELDS = {
 };
 
 const ENTRY_MAX_DURATION_HOURS = 24;
+const VALID_TASK_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
 
 function sendError(res, status, message) {
   return res.status(status).json({ message });
@@ -89,6 +92,35 @@ function isSuperuser(user) {
 
 function isAdmin(user) {
   return user?.role === 'admin';
+}
+
+function normalizeNamedRecord(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeTaskPriority(value) {
+  return VALID_TASK_PRIORITIES.has(value) ? value : 'medium';
+}
+
+async function assertUniqueNamedResource(model, name, ignoreId) {
+  const normalizedName = normalizeNamedRecord(name);
+  if (!normalizedName) throw new Error('Name is required');
+
+  const existing = await prisma[model].findFirst({
+    where: {
+      name: {
+        equals: normalizedName,
+        mode: 'insensitive',
+      },
+      ...(ignoreId ? { id: { not: ignoreId } } : {}),
+    },
+  });
+
+  if (existing) {
+    throw new Error(`${normalizedName} already exists`);
+  }
+
+  return normalizedName;
 }
 
 function scopeWhere(resource, user) {
@@ -190,6 +222,10 @@ function mergeWhere(scope, queryWhere) {
   return scope || queryWhere || {};
 }
 
+function activeProjectWhereForUser(user) {
+  return mergeWhere(scopeWhere('projects', user), { isActive: true });
+}
+
 function sortToOrderBy(sort) {
   if (!sort) return undefined;
   const direction = sort.startsWith('-') ? 'desc' : 'asc';
@@ -225,6 +261,23 @@ function normalizeSouthAfricanPhone(value) {
   if (digits.startsWith('27')) return `+${digits}`;
   if (digits.startsWith('0')) return `+27${digits.slice(1)}`;
   return `+27${digits}`;
+}
+
+function buildImageKitAuth() {
+  const token = crypto.randomUUID();
+  const expire = Math.floor(Date.now() / 1000) + 60 * 30;
+  const signature = crypto
+    .createHmac('sha1', env.imagekitPrivateKey)
+    .update(`${token}${expire}`)
+    .digest('hex');
+
+  return {
+    token,
+    expire,
+    signature,
+    publicKey: env.imagekitPublicKey,
+    urlEndpoint: env.imagekitUrlEndpoint,
+  };
 }
 
 function combineDateAndHour(dateValue, hourValue = 0) {
@@ -354,6 +407,83 @@ async function validateProjectAndClient(payload) {
   }
 }
 
+async function listAiProjectsForUser(user) {
+  return prisma.project.findMany({
+    where: activeProjectWhereForUser(user),
+    orderBy: { name: 'asc' },
+    take: 20,
+  });
+}
+
+async function resolveAiProject(user, ticketDraft) {
+  const requestedProjectId = normalizeNamedRecord(ticketDraft?.projectId || '');
+  const requestedProjectName = normalizeNamedRecord(ticketDraft?.projectName || '');
+
+  if (!requestedProjectId && !requestedProjectName) return null;
+
+  const lookupWhere = requestedProjectId
+    ? { id: requestedProjectId }
+    : {
+        name: {
+          equals: requestedProjectName,
+          mode: 'insensitive',
+        },
+      };
+
+  const project = await prisma.project.findFirst({
+    where: mergeWhere(activeProjectWhereForUser(user), lookupWhere),
+  });
+
+  if (!project) {
+    throw new Error('Selected project is not available for this user');
+  }
+
+  return project;
+}
+
+async function createTaskFromAiTicket(user, ticketDraft) {
+  const title = normalizeNamedRecord(ticketDraft?.title);
+  const description = normalizeNamedRecord(ticketDraft?.description);
+  const timeframeLabel = normalizeNamedRecord(ticketDraft?.timeframeLabel);
+  const dueDate = ticketDraft?.dueDate ? parseDateOnly(ticketDraft.dueDate) : undefined;
+  const estimatedHours = Number(ticketDraft?.estimatedHours);
+
+  required(title, 'title');
+  required(description, 'description');
+  if (!dueDate && !timeframeLabel) {
+    throw new Error('A ticket timeframe is required');
+  }
+
+  const project = await resolveAiProject(user, ticketDraft);
+
+  const payload = {
+    title,
+    description: timeframeLabel ? `${description}\n\nTimeframe: ${timeframeLabel}` : description,
+    dueDate,
+    priority: normalizeTaskPriority(ticketDraft?.priority),
+    status: 'todo',
+    assignedTo: user.id,
+    assignedToName: user.fullName || user.email || '',
+    estimatedHours: Number.isFinite(estimatedHours) && estimatedHours > 0 ? estimatedHours : undefined,
+    projectId: project?.id || undefined,
+    projectName: project?.name || undefined,
+    departmentId: project?.departmentId || user.departmentId || undefined,
+    createdById: user.id,
+  };
+
+  await validateProjectAndClient(payload);
+  const record = await prisma.task.create({ data: payload });
+  await writeActivityLog(
+    user,
+    'Created ticket via AI',
+    'Task',
+    record.id,
+    `Logged "${record.title}" from the AI assistant`,
+    record.departmentId
+  );
+  return record;
+}
+
 async function ensureEditableTimeEntry(existing) {
   return existing;
 }
@@ -397,6 +527,62 @@ function describeEntryChange(existing, payload) {
   return { action: 'Entry Updated', details: `Updated "${existing.taskTitle || payload.taskTitle || 'Time Entry'}"` };
 }
 
+async function resolveTimesheetForEntry({ userId, date, timesheetId }, fallbackTimesheetId = null) {
+  if (timesheetId !== undefined) {
+    if (!timesheetId) return null;
+    const explicitSheet = await prisma.timesheet.findUnique({ where: { id: timesheetId } });
+    if (explicitSheet) return explicitSheet;
+  }
+
+  if (userId && date) {
+    const day = startOfDayUtc(date);
+    const matchingSheet = await prisma.timesheet.findFirst({
+      where: {
+        userId,
+        weekStart: { lte: day },
+        weekEnd: { gte: day },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (matchingSheet) return matchingSheet;
+  }
+
+  if (fallbackTimesheetId) {
+    return prisma.timesheet.findUnique({ where: { id: fallbackTimesheetId } });
+  }
+
+  return null;
+}
+
+async function refreshTimesheetTotals(timesheetId) {
+  if (!timesheetId) return null;
+
+  const timesheet = await prisma.timesheet.findUnique({ where: { id: timesheetId } });
+  if (!timesheet) return null;
+
+  const linkedEntries = await prisma.timeEntry.findMany({
+    where: { timesheetId },
+  });
+  const totalHours = linkedEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+  const reopen = timesheet.status === 'approved' || timesheet.status === 'rejected';
+
+  return prisma.timesheet.update({
+    where: { id: timesheetId },
+    data: {
+      totalHours,
+      ...(reopen
+        ? {
+            status: 'pending',
+            submittedAt: new Date(),
+            reviewedBy: null,
+            reviewedByName: null,
+            adminNotes: null,
+          }
+        : {}),
+    },
+  });
+}
+
 async function handleCreate(resource, user, body) {
   const cfg = resourceConfig(resource);
   const payload = coerceDates(cfg.model, normalizeInput(body));
@@ -416,11 +602,20 @@ async function handleCreate(resource, user, body) {
     if (!isSuperuser(user) && payload.userId !== user.id) throw new Error('Forbidden');
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
     const normalizedEntry = await assignDefaultTimeEntryWindow(deriveTimeEntryFields(payload));
+    const linkedTimesheet = await resolveTimesheetForEntry({
+      userId: normalizedEntry.userId,
+      date: normalizedEntry.date,
+      timesheetId: Object.prototype.hasOwnProperty.call(payload, 'timesheetId') ? payload.timesheetId : undefined,
+    });
+    if (linkedTimesheet) {
+      normalizedEntry.timesheetId = linkedTimesheet.id;
+    }
     required(normalizedEntry.startAt, 'startAt');
     required(normalizedEntry.endAt, 'endAt');
     await validateProjectAndClient(normalizedEntry);
     await assertNoTimeEntryOverlap(normalizedEntry);
     const record = await prisma[cfg.model].create({ data: normalizedEntry });
+    await refreshTimesheetTotals(record.timesheetId);
     await writeActivityLog(
       user,
       'Entry Created',
@@ -479,6 +674,10 @@ async function handleCreate(resource, user, body) {
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
   }
 
+  if (cfg.model === 'department' || cfg.model === 'designation') {
+    payload.name = await assertUniqueNamedResource(cfg.model, payload.name);
+  }
+
   const record = await prisma[cfg.model].create({ data: payload });
   return serializeRecord(cfg.serialize, record);
 }
@@ -528,15 +727,34 @@ async function handleUpdate(resource, user, id, body) {
     await validateProjectAndClient(payload);
   }
 
+  if ((cfg.model === 'department' || cfg.model === 'designation') && payload.name !== undefined) {
+    payload.name = await assertUniqueNamedResource(cfg.model, payload.name, id);
+  }
+
   if (cfg.model === 'timeEntry') {
-    await ensureEditableTimeEntry(existing);
+    const previousTimesheetId = existing.timesheetId;
     const normalizedEntry = await assignDefaultTimeEntryWindow(deriveTimeEntryFields({
       ...existing,
       ...payload,
     }), id);
+    const hasTimesheetOverride = Object.prototype.hasOwnProperty.call(payload, 'timesheetId');
+    const dateChanged = existing.date?.toISOString() !== normalizedEntry.date?.toISOString();
+    const linkedTimesheet = await resolveTimesheetForEntry(
+      {
+        userId: normalizedEntry.userId,
+        date: normalizedEntry.date,
+        timesheetId: hasTimesheetOverride ? payload.timesheetId : undefined,
+      },
+      hasTimesheetOverride || dateChanged ? null : previousTimesheetId
+    );
+    normalizedEntry.timesheetId = linkedTimesheet?.id || null;
     await validateProjectAndClient(normalizedEntry);
     await assertNoTimeEntryOverlap(normalizedEntry, id);
     const record = await prisma[cfg.model].update({ where: { id }, data: normalizedEntry });
+    if (previousTimesheetId && previousTimesheetId !== record.timesheetId) {
+      await refreshTimesheetTotals(previousTimesheetId);
+    }
+    await refreshTimesheetTotals(record.timesheetId);
     const change = describeEntryChange(existing, normalizedEntry);
     await writeActivityLog(user, change.action, 'TimeEntry', record.id, change.details, record.departmentId);
     return serializeRecord(cfg.serialize, record);
@@ -581,11 +799,11 @@ async function handleDelete(resource, user, id) {
   }
 
   if (resource === 'time-entries') {
-    await ensureEditableTimeEntry(existing);
-  }
-
-  const record = await prisma[cfg.model].delete({ where: { id } });
-  if (resource === 'time-entries') {
+    const previousTimesheetId = existing.timesheetId;
+    const record = await prisma[cfg.model].delete({ where: { id } });
+    if (previousTimesheetId) {
+      await refreshTimesheetTotals(previousTimesheetId);
+    }
     await writeActivityLog(
       user,
       'Entry Deleted',
@@ -594,7 +812,10 @@ async function handleDelete(resource, user, id) {
       `Deleted "${record.taskTitle || 'Time Entry'}"`,
       record.departmentId
     );
+    return serializeRecord(cfg.serialize, record);
   }
+
+  const record = await prisma[cfg.model].delete({ where: { id } });
   return serializeRecord(cfg.serialize, record);
 }
 
@@ -641,16 +862,17 @@ app.get('/health/base44', async (_req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, phone } = normalizeInput(req.body);
-    required(email, 'email');
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    required(normalizedEmail, 'email');
     required(password, 'password');
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) return sendError(res, 409, 'Email already registered');
 
     const passwordHash = await hashPassword(password);
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         passwordHash,
         fullName: fullName || '',
         phone: normalizeSouthAfricanPhone(phone) || '',
@@ -670,9 +892,10 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = normalizeInput(req.body);
-    required(email, 'email');
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    required(normalizedEmail, 'email');
     required(password, 'password');
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) return sendError(res, 401, 'Invalid email or password');
     const ok = await comparePassword(password, user.passwordHash);
     if (!ok) return sendError(res, 401, 'Invalid email or password');
@@ -681,7 +904,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: serializeRecord('user', user),
     });
   } catch (error) {
-    return sendError(res, 400, error.message || 'Login failed');
+    console.error('Login failed:', error);
+    return sendError(res, 400, 'Login failed. Please try again.');
   }
 });
 
@@ -696,7 +920,9 @@ app.patch('/api/auth/me', requireAuth, async (req, res) => {
       where: { id: req.authUser.id },
       data: {
         phone: payload.phone !== undefined ? normalizeSouthAfricanPhone(payload.phone) : req.authUser.phone,
-        fullName: payload.fullName ?? req.authUser.fullName,
+        fullName: payload.fullName !== undefined ? normalizeNamedRecord(payload.fullName) : req.authUser.fullName,
+        profileImageUrl: payload.profileImageUrl !== undefined ? payload.profileImageUrl : req.authUser.profileImageUrl,
+        profileImagePath: payload.profileImagePath !== undefined ? payload.profileImagePath : req.authUser.profileImagePath,
         departmentId: payload.departmentId !== undefined ? payload.departmentId : req.authUser.departmentId,
         designationId: payload.designationId !== undefined ? payload.designationId : req.authUser.designationId,
       },
@@ -707,10 +933,23 @@ app.patch('/api/auth/me', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/imagekit/auth', requireAuth, async (_req, res) => {
+  try {
+    if (!env.imagekitPublicKey || !env.imagekitPrivateKey || !env.imagekitUrlEndpoint) {
+      return sendError(res, 503, 'ImageKit is not configured');
+    }
+
+    return res.json(buildImageKitAuth());
+  } catch (error) {
+    return sendError(res, 400, error.message || 'ImageKit auth failed');
+  }
+});
+
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = normalizeInput(req.body);
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (user) {
       const resetToken = createResetToken();
       await prisma.user.update({
@@ -721,7 +960,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         },
       });
       const resetUrl = `${env.frontendUrl}/reset-password?token=${resetToken}`;
-      console.log(`Password reset for ${email}: ${resetUrl}`);
+      console.log(`Password reset for ${normalizedEmail}: ${resetUrl}`);
     }
     return res.json({ ok: true });
   } catch (error) {
@@ -754,6 +993,37 @@ app.post('/api/auth/reset-password', async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     return sendError(res, 400, error.message || 'Password reset failed');
+  }
+});
+
+app.post('/api/ai/chat', requireAuth, async (req, res) => {
+  try {
+    if (!isAiConfigured()) {
+      return sendError(res, 503, 'AI assistant is not configured');
+    }
+
+    const payload = normalizeInput(req.body);
+    const messages = Array.isArray(payload.messages) ? payload.messages : [];
+    const projects = await listAiProjectsForUser(req.authUser);
+    const response = await generateAssistantReply({
+      user: req.authUser,
+      messages,
+      projects,
+    });
+
+    return res.json(response);
+  } catch (error) {
+    return sendError(res, error.statusCode || 400, error.message || 'AI request failed');
+  }
+});
+
+app.post('/api/ai/log-ticket', requireAuth, async (req, res) => {
+  try {
+    const payload = normalizeInput(req.body);
+    const task = await createTaskFromAiTicket(req.authUser, payload.ticketDraft || {});
+    return res.status(201).json(serializeRecord('task', task));
+  } catch (error) {
+    return sendError(res, error.statusCode || 400, error.message || 'Ticket logging failed');
   }
 });
 

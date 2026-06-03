@@ -77,8 +77,6 @@ export default function TaskManagement() {
     queryKey: ['taskProjects', user?.department_id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser') return base44.entities.Project.list();
-      if (user.department_id) return base44.entities.Project.filter({ department_id: user.department_id });
       return base44.entities.Project.list();
     },
     enabled: !!user,
@@ -232,6 +230,9 @@ export default function TaskManagement() {
                 {task.due_date && (
                   <p className="text-xs text-muted-foreground mt-0.5">Due {new Date(task.due_date).toLocaleDateString()}</p>
                 )}
+                {task.project_name && (
+                  <p className="text-xs text-primary mt-0.5">Project: {task.project_name}</p>
+                )}
               </div>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.medium}`}>
                 {task.priority}
@@ -300,7 +301,7 @@ export default function TaskManagement() {
                 onChange={(e) => handleProjectChange(e.target.value)}
               >
                 <option value="">No project</option>
-                {projects.map((project) => (
+                {projects.filter((project) => project.is_active || project.id === form.project_id).map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>

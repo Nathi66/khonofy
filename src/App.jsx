@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from 'next-themes';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
@@ -22,11 +23,13 @@ import UserManagement from './pages/UserManagement';
 import AdminReports from './pages/AdminReports';
 import DeptHeadSummary from './pages/DeptHeadSummary';
 import ProjectManagement from './pages/ProjectManagement';
+import SuperuserTimesheetFeedback from './pages/SuperuserTimesheetFeedback';
+import AIAssistant from './pages/AIAssistant';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import ThemeToggleFAB from './components/ThemeToggleFAB';
+import GlobalFloatingActions from './components/GlobalFloatingActions';
 
 function App() {
   return (
@@ -54,15 +57,18 @@ function App() {
                   <Route path="/tags" element={<TagManagement />} />
                   <Route path="/projects" element={<ProjectManagement />} />
                   <Route path="/users" element={<UserManagement />} />
+                  <Route path="/timesheets/feedback" element={<SuperuserTimesheetFeedback />} />
+                  <Route path="/ai-assistant" element={<AIAssistant />} />
                   <Route path="/admin-reports" element={<AdminReports />} />
         <Route path="/dept-summary" element={<DeptHeadSummary />} />
                 </Route>
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            <GlobalFloatingActions />
           </Router>
           <Toaster />
-          <ThemeToggleFAB />
+          <SonnerToaster richColors closeButton position="top-right" />
         </QueryClientProvider>
       </AuthProvider>
     </ThemeProvider>

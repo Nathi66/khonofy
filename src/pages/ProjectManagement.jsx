@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Building2, FolderKanban, Plus } from 'lucide-react';
+import { Building2, FolderKanban, Pencil, Plus } from 'lucide-react';
 
 const EMPTY_CLIENT_FORM = { name: '', description: '', is_active: true };
 const EMPTY_PROJECT_FORM = {
@@ -70,8 +70,8 @@ export default function ProjectManagement() {
 
   const [showClientDialog, setShowClientDialog] = useState(false);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
-  const [showBulkClientDialog, setShowBulkClientDialog] = useState(false);
-  const [showBulkProjectDialog, setShowBulkProjectDialog] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
   const [clientForm, setClientForm] = useState(EMPTY_CLIENT_FORM);
   const [projectForm, setProjectForm] = useState(EMPTY_PROJECT_FORM);
   const [bulkClientText, setBulkClientText] = useState('');
@@ -87,8 +87,6 @@ export default function ProjectManagement() {
     queryKey: ['projects', user?.department_id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser') return base44.entities.Project.list();
-      if (user.department_id) return base44.entities.Project.filter({ department_id: user.department_id });
       return base44.entities.Project.list();
     },
     enabled: canManage,
@@ -110,8 +108,18 @@ export default function ProjectManagement() {
     onSuccess: async (client) => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       if (user) await logActivity(user, 'Created client', 'Client', client.id, client.name);
-      setShowClientDialog(false);
-      setClientForm(EMPTY_CLIENT_FORM);
+      closeClientDialog();
+    },
+  });
+
+  const updateClient = useMutation({
+    mutationFn: ({ id, payload }) => base44.entities.Client.update(id, payload),
+    onSuccess: async (client) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['calendarClients'] });
+      if (user) await logActivity(user, 'Updated client', 'Client', client.id, client.name);
+      closeClientDialog();
     },
   });
 
@@ -119,9 +127,24 @@ export default function ProjectManagement() {
     mutationFn: (payload) => base44.entities.Project.create(payload),
     onSuccess: async (project) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['taskProjects'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyLogProjects'] });
+      queryClient.invalidateQueries({ queryKey: ['calendarProjects'] });
       if (user) await logActivity(user, 'Created project', 'Project', project.id, project.name);
-      setShowProjectDialog(false);
-      setProjectForm(EMPTY_PROJECT_FORM);
+      closeProjectDialog();
+    },
+  });
+
+  const updateProject = useMutation({
+    mutationFn: ({ id, payload }) => base44.entities.Project.update(id, payload),
+    onSuccess: async (project) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['taskProjects'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyLogProjects'] });
+      queryClient.invalidateQueries({ queryKey: ['calendarProjects'] });
+      queryClient.invalidateQueries({ queryKey: ['calendarEntries'] });
+      if (user) await logActivity(user, 'Updated project', 'Project', project.id, project.name);
+      closeProjectDialog();
     },
   });
 
@@ -169,21 +192,88 @@ export default function ProjectManagement() {
 
   const handleCreateClient = () => {
     if (!clientForm.name.trim()) return;
-    createClient.mutate(clientForm);
+    const payload = {
+      ...clientForm,
+      name: clientForm.name.trim(),
+      description: clientForm.description.trim(),
+    };
+    if (editingClient) {
+      updateClient.mutate({ id: editingClient.id, payload });
+      return;
+    }
+    createClient.mutate(payload);
   };
 
   const handleCreateProject = () => {
     if (!projectForm.name.trim()) return;
     const selectedClient = clients.find((client) => client.id === projectForm.client_id);
-    createProject.mutate({
+    const payload = {
       ...projectForm,
+      name: projectForm.name.trim(),
+      description: projectForm.description.trim(),
       client_name: selectedClient?.name || '',
       department_id: projectForm.department_id || user?.department_id || '',
-    });
+    };
+    if (editingProject) {
+      updateProject.mutate({ id: editingProject.id, payload });
+      return;
+    }
+    createProject.mutate(payload);
   };
 
   const bulkClientNames = parseBulkNames(bulkClientText);
   const bulkProjectNames = parseBulkNames(bulkProjectText);
+
+  function openCreateClientDialog() {
+    setEditingClient(null);
+    setClientForm(EMPTY_CLIENT_FORM);
+    setShowClientDialog(true);
+  }
+
+  function openEditClientDialog(client) {
+    setEditingClient(client);
+    setClientForm({
+      name: client.name || '',
+      description: client.description || '',
+      is_active: Boolean(client.is_active),
+    });
+    setShowClientDialog(true);
+  }
+
+  function closeClientDialog() {
+    setShowClientDialog(false);
+    setEditingClient(null);
+    setClientForm(EMPTY_CLIENT_FORM);
+  }
+
+  function openCreateProjectDialog() {
+    setEditingProject(null);
+    setProjectForm({
+      ...EMPTY_PROJECT_FORM,
+      department_id: user?.department_id || '',
+    });
+    setShowProjectDialog(true);
+  }
+
+  function openEditProjectDialog(project) {
+    setEditingProject(project);
+    setProjectForm({
+      name: project.name || '',
+      description: project.description || '',
+      client_id: project.client_id || '',
+      department_id: project.department_id || '',
+      color: project.color || '#6366f1',
+      is_billable_default: Boolean(project.is_billable_default),
+      is_active: Boolean(project.is_active),
+    });
+    setShowProjectDialog(true);
+  }
+
+  function closeProjectDialog() {
+    setShowProjectDialog(false);
+    setEditingProject(null);
+    setProjectForm(EMPTY_PROJECT_FORM);
+  }
 
   return (
     <PageShell>
@@ -198,13 +288,10 @@ export default function ProjectManagement() {
           description="Create and manage clients that group project work."
           icon={Building2}
           action={(
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowBulkClientDialog(true)}>Bulk Add</Button>
-              <Button onClick={() => setShowClientDialog(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Client
-              </Button>
-            </div>
+            <Button onClick={openCreateClientDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Client
+            </Button>
           )}
         >
           {clientsLoading ? (
@@ -215,9 +302,19 @@ export default function ProjectManagement() {
                 <div key={client.id} className="rounded-lg border border-border bg-background p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium text-foreground">{client.name}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${client.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {client.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${client.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {client.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditClientDialog(client)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{client.description || 'No description added.'}</p>
                 </div>
@@ -236,13 +333,10 @@ export default function ProjectManagement() {
           description="Projects can carry a client, color, department, and default billable setting."
           icon={FolderKanban}
           action={(
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowBulkProjectDialog(true)}>Bulk Add</Button>
-              <Button onClick={() => setShowProjectDialog(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                New Project
-              </Button>
-            </div>
+            <Button onClick={openCreateProjectDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Project
+            </Button>
           )}
         >
           {projectsLoading ? (
@@ -259,9 +353,19 @@ export default function ProjectManagement() {
                       />
                       <p className="font-medium text-foreground">{project.name}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${project.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {project.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${project.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {project.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditProjectDialog(project)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">{project.description || 'No description added.'}</p>
                   <div className="mt-3 space-y-1 text-xs text-muted-foreground">
@@ -281,10 +385,10 @@ export default function ProjectManagement() {
         </EntitySection>
       </div>
 
-      <Dialog open={showClientDialog} onOpenChange={setShowClientDialog}>
+      <Dialog open={showClientDialog} onOpenChange={(open) => (open ? setShowClientDialog(true) : closeClientDialog())}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Client</DialogTitle>
+            <DialogTitle>{editingClient ? 'Edit Client' : 'Create Client'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -316,18 +420,21 @@ export default function ProjectManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClientDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateClient} disabled={createClient.isPending || !clientForm.name.trim()}>
-              {createClient.isPending ? 'Saving...' : 'Create Client'}
+            <Button variant="outline" onClick={closeClientDialog}>Cancel</Button>
+            <Button
+              onClick={handleCreateClient}
+              disabled={createClient.isPending || updateClient.isPending || !clientForm.name.trim()}
+            >
+              {createClient.isPending || updateClient.isPending ? 'Saving...' : editingClient ? 'Save Changes' : 'Create Client'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>
+      <Dialog open={showProjectDialog} onOpenChange={(open) => (open ? setShowProjectDialog(true) : closeProjectDialog())}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create Project</DialogTitle>
+            <DialogTitle>{editingProject ? 'Edit Project' : 'Create Project'}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-4 py-2 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -406,75 +513,17 @@ export default function ProjectManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProjectDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateProject} disabled={createProject.isPending || !projectForm.name.trim()}>
-              {createProject.isPending ? 'Saving...' : 'Create Project'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showBulkClientDialog} onOpenChange={setShowBulkClientDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bulk Add Clients</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-muted-foreground">Paste one client name per line. Duplicate names in the paste are ignored.</p>
-            <Textarea
-              rows={10}
-              value={bulkClientText}
-              onChange={(event) => setBulkClientText(event.target.value)}
-              placeholder="Acme Holdings&#10;Khonofy Internal&#10;Northwind Labs"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulkClientDialog(false)}>Cancel</Button>
-            <Button onClick={() => bulkCreateClients.mutate(bulkClientNames)} disabled={!bulkClientNames.length || bulkCreateClients.isPending}>
-              {bulkCreateClients.isPending ? 'Saving...' : 'Create Clients'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showBulkProjectDialog} onOpenChange={setShowBulkProjectDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bulk Add Projects</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Attach to client</label>
-              <select
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                value={projectForm.client_id}
-                onChange={(event) => setProjectForm((current) => ({ ...current, client_id: event.target.value }))}
-              >
-                <option value="">No client</option>
-                {clients.filter((client) => client.is_active).map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
-            </div>
-            <p className="text-sm text-muted-foreground">Paste one project name per line. Each project uses the selected client and your department by default.</p>
-            <Textarea
-              rows={10}
-              value={bulkProjectText}
-              onChange={(event) => setBulkProjectText(event.target.value)}
-              placeholder="Website Refresh&#10;Customer Onboarding&#10;Internal Training"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulkProjectDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={closeProjectDialog}>Cancel</Button>
             <Button
-              onClick={() => bulkCreateProjects.mutate({ names: bulkProjectNames, clientId: projectForm.client_id })}
-              disabled={!bulkProjectNames.length || bulkCreateProjects.isPending}
+              onClick={handleCreateProject}
+              disabled={createProject.isPending || updateProject.isPending || !projectForm.name.trim()}
             >
-              {bulkCreateProjects.isPending ? 'Saving...' : 'Create Projects'}
+              {createProject.isPending || updateProject.isPending ? 'Saving...' : editingProject ? 'Save Changes' : 'Create Project'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </PageShell>
   );
 }
