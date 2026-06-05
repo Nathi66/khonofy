@@ -123,40 +123,80 @@ async function assertUniqueNamedResource(model, name, ignoreId) {
   return normalizedName;
 }
 
-function scopeWhere(resource, user) {
+const NO_MATCH = { id: '__no_match__' };
+
+async function getAssignedStaffIds(adminId) {
+  const staff = await prisma.user.findMany({
+    where: { adminId, role: 'staff' },
+    select: { id: true },
+  });
+  return staff.map((s) => s.id);
+}
+
+async function validateUserAdminAssignment({ role, adminId }) {
+  if (adminId === null || adminId === undefined || adminId === '') return;
+  if (role !== 'staff') {
+    throw new Error('Only staff users can be assigned to an admin');
+  }
+  const admin = await prisma.user.findUnique({ where: { id: adminId } });
+  if (!admin || admin.role !== 'admin') {
+    throw new Error('Assigned admin must be an admin user');
+  }
+}
+
+async function scopeWhere(resource, user) {
   if (isSuperuser(user)) return {};
+
+  if (isAdmin(user)) {
+    const staffIds = await getAssignedStaffIds(user.id);
+    switch (resource) {
+      case 'users':
+        return { OR: [{ id: user.id }, { adminId: user.id }] };
+      case 'tasks':
+        return staffIds.length ? { assignedTo: { in: staffIds } } : NO_MATCH;
+      case 'time-entries':
+      case 'timesheets':
+      case 'activity-logs':
+        return staffIds.length ? { userId: { in: staffIds } } : NO_MATCH;
+      case 'departments':
+      case 'designations':
+      case 'clients':
+        return {};
+      case 'projects':
+        if (user.departmentId) {
+          return {
+            OR: [
+              { departmentId: user.departmentId },
+              { departmentId: null },
+            ],
+          };
+        }
+        return {};
+      case 'tags':
+        return {};
+      default:
+        return {};
+    }
+  }
 
   switch (resource) {
     case 'users':
-      if (isAdmin(user) && user.departmentId) return { departmentId: user.departmentId };
       return { id: user.id };
     case 'tasks':
-      if (isAdmin(user) && user.departmentId) return { departmentId: user.departmentId };
       return { OR: [{ assignedTo: user.id }, { createdById: user.id }] };
     case 'time-entries':
-      if (isAdmin(user) && user.departmentId) return { departmentId: user.departmentId };
       return { userId: user.id };
     case 'timesheets':
-      if (isAdmin(user) && user.departmentId) return { departmentId: user.departmentId };
       return { userId: user.id };
     case 'task-templates':
       return { userId: user.id };
     case 'activity-logs':
-      if (isAdmin(user) && user.departmentId) return { departmentId: user.departmentId };
       return { userId: user.id };
     case 'departments':
     case 'designations':
     case 'clients':
       return {};
     case 'projects':
-      if (isAdmin(user) && user.departmentId) {
-        return {
-          OR: [
-            { departmentId: user.departmentId },
-            { departmentId: null },
-          ],
-        };
-      }
       if (user?.role === 'staff' && user.departmentId) {
         return {
           isActive: true,
@@ -222,8 +262,8 @@ function mergeWhere(scope, queryWhere) {
   return scope || queryWhere || {};
 }
 
-function activeProjectWhereForUser(user) {
-  return mergeWhere(scopeWhere('projects', user), { isActive: true });
+async function activeProjectWhereForUser(user) {
+  return mergeWhere(await scopeWhere('projects', user), { isActive: true });
 }
 
 function sortToOrderBy(sort) {
@@ -409,7 +449,7 @@ async function validateProjectAndClient(payload) {
 
 async function listAiProjectsForUser(user) {
   return prisma.project.findMany({
-    where: activeProjectWhereForUser(user),
+    where: await activeProjectWhereForUser(user),
     orderBy: { name: 'asc' },
     take: 20,
   });
@@ -431,7 +471,7 @@ async function resolveAiProject(user, ticketDraft) {
       };
 
   const project = await prisma.project.findFirst({
-    where: mergeWhere(activeProjectWhereForUser(user), lookupWhere),
+    where: mergeWhere(await activeProjectWhereForUser(user), lookupWhere),
   });
 
   if (!project) {
@@ -592,6 +632,10 @@ async function handleCreate(resource, user, body) {
     if (!isSuperuser(user) && !isAdmin(user)) {
       throw new Error('Forbidden');
     }
+    if (isAdmin(user) && payload.assignedTo) {
+      const staffIds = await getAssignedStaffIds(user.id);
+      if (!staffIds.includes(payload.assignedTo)) throw new Error('Forbidden');
+    }
     payload.createdById = user.id;
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
     await validateProjectAndClient(payload);
@@ -669,6 +713,19 @@ async function handleCreate(resource, user, body) {
     throw new Error('Forbidden');
   }
 
+  if (cfg.model === 'user') {
+    required(payload.email, 'email');
+    required(payload.password, 'password');
+    payload.passwordHash = await hashPassword(payload.password);
+    delete payload.password;
+    const role = payload.role || 'staff';
+    if (role !== 'staff') {
+      delete payload.adminId;
+    } else if (payload.adminId) {
+      await validateUserAdminAssignment({ role, adminId: payload.adminId });
+    }
+  }
+
   if (cfg.model === 'project') {
     await validateProjectAndClient(payload);
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
@@ -687,10 +744,12 @@ async function handleUpdate(resource, user, id, body) {
   const existing = await prisma[cfg.model].findUnique({ where: { id } });
   if (!existing) return null;
 
+  const staffIds = isAdmin(user) ? await getAssignedStaffIds(user.id) : [];
+
   if (resource === 'tasks') {
     const canEdit =
       isSuperuser(user) ||
-      (isAdmin(user) && (!user.departmentId || existing.departmentId === user.departmentId)) ||
+      (isAdmin(user) && staffIds.includes(existing.assignedTo)) ||
       existing.assignedTo === user.id ||
       existing.createdById === user.id;
     if (!canEdit) throw new Error('Forbidden');
@@ -705,7 +764,7 @@ async function handleUpdate(resource, user, id, body) {
     }[resource];
     const canEdit =
       isSuperuser(user) ||
-      (isAdmin(user) && user.departmentId && existing.departmentId === user.departmentId) ||
+      (isAdmin(user) && staffIds.includes(existing[ownerField])) ||
       existing[ownerField] === user.id;
     if (!canEdit) throw new Error('Forbidden');
   }
@@ -720,11 +779,29 @@ async function handleUpdate(resource, user, id, body) {
 
   const payload = coerceDates(cfg.model, normalizeInput(body));
   if (cfg.model === 'task') {
+    if (isAdmin(user) && payload.assignedTo) {
+      if (!staffIds.includes(payload.assignedTo)) throw new Error('Forbidden');
+    }
     await validateProjectAndClient(payload);
   }
 
   if (cfg.model === 'project') {
     await validateProjectAndClient(payload);
+  }
+
+  if (cfg.model === 'user') {
+    if (payload.password) {
+      payload.passwordHash = await hashPassword(payload.password);
+      delete payload.password;
+    }
+    const nextRole = payload.role !== undefined ? payload.role : existing.role;
+    if (nextRole !== 'staff') {
+      payload.adminId = null;
+    } else if (payload.adminId !== undefined) {
+      await validateUserAdminAssignment({ role: nextRole, adminId: payload.adminId });
+    } else if (payload.role === 'staff' && existing.adminId) {
+      await validateUserAdminAssignment({ role: nextRole, adminId: existing.adminId });
+    }
   }
 
   if ((cfg.model === 'department' || cfg.model === 'designation') && payload.name !== undefined) {
@@ -770,8 +847,9 @@ async function handleDelete(resource, user, id) {
   if (!existing) return null;
 
   if (!isSuperuser(user)) {
+    const staffIds = isAdmin(user) ? await getAssignedStaffIds(user.id) : [];
     if (resource === 'tasks') {
-      const canDelete = isAdmin(user) && existing.departmentId === user.departmentId;
+      const canDelete = isAdmin(user) && staffIds.includes(existing.assignedTo);
       if (!canDelete) throw new Error('Forbidden');
     } else if (resource === 'tags') {
       throw new Error('Forbidden');
@@ -910,7 +988,14 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, async (req, res) => {
-  return res.json(serializeRecord('user', req.authUser));
+  const serialized = serializeRecord('user', req.authUser);
+  if (req.authUser.adminId) {
+    const admin = await prisma.user.findUnique({ where: { id: req.authUser.adminId } });
+    if (admin) {
+      serialized.admin_name = admin.fullName || admin.email;
+    }
+  }
+  return res.json(serialized);
 });
 
 app.patch('/api/auth/me', requireAuth, async (req, res) => {
@@ -1044,11 +1129,11 @@ app.get('/api/calendar/entries', requireAuth, async (req, res) => {
 
     const targetUserId = requestedUserId || req.authUser.id;
     if (!isSuperuser(req.authUser) && targetUserId !== req.authUser.id) {
-      if (!(isAdmin(req.authUser) && req.authUser.departmentId)) {
+      if (!isAdmin(req.authUser)) {
         throw new Error('Forbidden');
       }
-      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
-      if (!targetUser || targetUser.departmentId !== req.authUser.departmentId) {
+      const staffIds = await getAssignedStaffIds(req.authUser.id);
+      if (!staffIds.includes(targetUserId)) {
         throw new Error('Forbidden');
       }
     }
@@ -1075,7 +1160,7 @@ app.get('/api/:resource', requireAuth, async (req, res) => {
     const cfg = resourceConfig(resource);
     if (!cfg) return sendError(res, 404, 'Unknown resource');
 
-    const scope = scopeWhere(resource, req.authUser);
+    const scope = await scopeWhere(resource, req.authUser);
     const queryWhere = queryToWhere(cfg.model, req.query);
     const where = mergeWhere(scope, queryWhere);
     const orderBy = sortToOrderBy(req.query.sort);
@@ -1106,7 +1191,7 @@ app.get('/api/:resource/:id', requireAuth, async (req, res) => {
   try {
     const cfg = resourceConfig(req.params.resource);
     if (!cfg) return sendError(res, 404, 'Unknown resource');
-    const scope = scopeWhere(req.params.resource, req.authUser);
+    const scope = await scopeWhere(req.params.resource, req.authUser);
     const record = await prisma[cfg.model].findUnique({ where: { id: req.params.id } });
     if (!record) return sendError(res, 404, 'Not found');
     const scoped = mergeWhere(scope, { id: record.id });

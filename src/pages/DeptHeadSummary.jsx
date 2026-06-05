@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -8,28 +9,31 @@ import PageShell from '@/components/PageShell';
 
 export default function DeptHeadSummary() {
   const { data: user } = useCurrentUser();
-  const deptId = user?.department_id;
+  const isAdmin = user?.role === 'admin';
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['deptUsers', deptId],
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['deptUsers', user?.id],
     queryFn: () => base44.entities.User.list(),
-    enabled: !!deptId,
-    select: (all) => all.filter(u => u.department_id === deptId),
+    enabled: !!user && (user.role === 'admin' || user.role === 'superuser'),
   });
 
+  const members = useMemo(
+    () => (isAdmin ? allUsers.filter((u) => u.role === 'staff') : allUsers),
+    [allUsers, isAdmin],
+  );
+
   const { data: timeEntries = [] } = useQuery({
-    queryKey: ['deptTimeEntries', deptId],
-    queryFn: () => base44.entities.TimeEntry.filter({ department_id: deptId }),
-    enabled: !!deptId,
+    queryKey: ['deptTimeEntries', user?.id],
+    queryFn: () => base44.entities.TimeEntry.list(),
+    enabled: !!user && (user.role === 'admin' || user.role === 'superuser'),
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['deptTasks', deptId],
-    queryFn: () => base44.entities.Task.filter({ department_id: deptId }),
-    enabled: !!deptId,
+    queryKey: ['deptTasks', user?.id],
+    queryFn: () => base44.entities.Task.list(),
+    enabled: !!user && (user.role === 'admin' || user.role === 'superuser'),
   });
 
-  // Per-member breakdown
   const memberStats = members.map(m => {
     const logged = timeEntries
       .filter(e => e.user_id === m.id)
@@ -58,10 +62,9 @@ export default function DeptHeadSummary() {
     <PageShell>
       <PageHeader
         title="Hours vs Estimates"
-        description="Department-wide breakdown of logged hours against task estimates"
+        description="Breakdown of logged hours against task estimates for your allocated staff"
       />
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Team Members', value: members.length, icon: Users, color: 'text-blue-500' },
@@ -79,7 +82,6 @@ export default function DeptHeadSummary() {
         ))}
       </div>
 
-      {/* Bar chart */}
       {memberStats.length > 0 && (
         <div className="bg-card rounded-xl border border-border p-5">
           <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -99,14 +101,13 @@ export default function DeptHeadSummary() {
         </div>
       )}
 
-      {/* Per-member table */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <h2 className="font-semibold text-foreground">Member Breakdown</h2>
         </div>
         <div className="divide-y divide-border">
           {memberStats.length === 0 && (
-            <p className="text-muted-foreground text-sm text-center py-8">No data yet for this department.</p>
+            <p className="text-muted-foreground text-sm text-center py-8">No data yet for your allocated staff.</p>
           )}
           {memberStats.map(m => {
             const pct = m.estimated > 0 ? Math.min((m.logged / m.estimated) * 100, 150) : null;

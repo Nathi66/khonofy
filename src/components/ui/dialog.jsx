@@ -25,6 +25,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').HTMLAttributes<HTMLDivElement> & { children?: import('react').ReactNode } & import('react').RefAttributes<HTMLDivElement>>} */
 const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
@@ -46,6 +47,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
+/** @param {import('react').HTMLAttributes<HTMLDivElement> & { className?: string }} props */
 const DialogHeader = ({
   className,
   ...props
@@ -56,6 +58,7 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
+/** @param {import('react').HTMLAttributes<HTMLDivElement> & { className?: string }} props */
 const DialogFooter = ({
   className,
   ...props
@@ -66,6 +69,7 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').HTMLAttributes<HTMLHeadingElement> & import('react').RefAttributes<HTMLHeadingElement>>} */
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
@@ -74,6 +78,7 @@ const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').HTMLAttributes<HTMLParagraphElement> & import('react').RefAttributes<HTMLParagraphElement>>} */
 const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}

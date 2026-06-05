@@ -41,15 +41,13 @@ export default function TimesheetReview() {
   const isAdmin = user?.role === 'admin';
 
   const { data: timesheets = [], isLoading } = useQuery({
-    queryKey: ['teamTimesheets', user?.department_id],
-    queryFn: () => user?.department_id
-      ? base44.entities.Timesheet.filter({ department_id: user.department_id })
-      : [],
+    queryKey: ['teamTimesheets', user?.id],
+    queryFn: () => base44.entities.Timesheet.list(),
     enabled: !!user && isAdmin,
   });
 
   const { data: entriesBySheet = {} } = useQuery({
-    queryKey: ['allEntries', user?.department_id],
+    queryKey: ['allEntries', user?.id],
     queryFn: async () => {
       const entries = await base44.entities.TimeEntry.list();
       return entries.reduce((acc, entry) => {

@@ -45,11 +45,14 @@ model User {
   role                  UserRole @default(staff)
   departmentId          String?
   designationId         String?
+  adminId               String?
   phone                 String?
   resetToken            String?
   resetTokenExpiresAt    DateTime?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  admin                 User?    @relation("AdminStaff", fields: [adminId], references: [id])
+  staff                 User[]   @relation("AdminStaff")
 }
 
 model Department {

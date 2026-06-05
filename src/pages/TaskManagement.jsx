@@ -56,21 +56,18 @@ export default function TaskManagement() {
   const [form, setForm] = useState(EMPTY_FORM);
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks', user?.id, user?.department_id],
+    queryKey: ['tasks', user?.id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser') return base44.entities.Task.list();
-      if (user.department_id) return base44.entities.Task.filter({ department_id: user.department_id });
+      if (user.role === 'superuser' || user.role === 'admin') return base44.entities.Task.list();
       return base44.entities.Task.filter({ created_by_id: user.id });
     },
     enabled: !!user,
   });
 
   const { data: staffUsers = [] } = useQuery({
-    queryKey: ['staffUsers', user?.department_id],
-    queryFn: () => user?.department_id
-      ? base44.entities.User.filter({ department_id: user.department_id })
-      : base44.entities.User.list(),
+    queryKey: ['staffUsers', user?.id],
+    queryFn: () => base44.entities.User.filter({ role: 'staff' }),
     enabled: !!user,
   });
 

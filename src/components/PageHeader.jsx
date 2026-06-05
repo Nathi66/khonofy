@@ -1,7 +1,12 @@
 import { cn } from "@/lib/utils";
 
-export default function PageHeader({ title, description, actions, className }) {
-  const heading = (
+export default function PageHeader({ title, description, actions, icon: Icon, className = undefined }) {
+  const heading = Icon ? (
+    <div className="flex items-center gap-2">
+      <Icon className="w-6 h-6 text-primary" />
+      <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+    </div>
+  ) : (
     <h1 className="text-2xl font-bold text-foreground">{title}</h1>
   );
 

@@ -12,6 +12,7 @@ const SelectGroup = SelectPrimitive.Group
 
 const SelectValue = SelectPrimitive.Value
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').ButtonHTMLAttributes<HTMLButtonElement> & { children?: import('react').ReactNode } & import('react').RefAttributes<HTMLButtonElement>>} */
 const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
@@ -49,6 +50,7 @@ const SelectScrollDownButton = React.forwardRef(({ className, ...props }, ref) =
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').HTMLAttributes<HTMLDivElement> & { children?: import('react').ReactNode; position?: 'item-aligned' | 'popper' } & import('react').RefAttributes<HTMLDivElement>>} */
 const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
@@ -81,6 +83,7 @@ const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (
 ))
 SelectLabel.displayName = SelectPrimitive.Label.displayName
 
+/** @type {import('react').ForwardRefExoticComponent<import('react').HTMLAttributes<HTMLDivElement> & { children?: import('react').ReactNode; value: string; disabled?: boolean } & import('react').RefAttributes<HTMLDivElement>>} */
 const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}

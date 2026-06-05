@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import StatsCard from '@/components/StatsCard';
 import TaskCard from '@/components/TaskCard';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Clock, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle2, AlertCircle, ArrowRight, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
@@ -40,6 +40,20 @@ export default function StaffDashboard({ user }) {
         title={`Good ${getGreeting()}, ${user.full_name?.split(' ')[0] || 'there'} 👋`}
         description="Here's your work summary for today."
       />
+
+      {!user.admin_id && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-blue-900">
+              No admin has been allocated to you yet
+            </p>
+            <p className="text-xs text-blue-700 mt-1">
+              Your super admin has not allocated an admin to you yet. You can still log time and submit timesheets; an admin will review your work once you are assigned.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard label="Hours Today" value={hoursToday.toFixed(1)} icon={Clock} color="primary" />

@@ -1,5 +1,36 @@
 import type { ComponentType, ReactNode } from "react";
 
+declare module "@/components/PageShell" {
+  export interface PageShellProps {
+    children?: ReactNode;
+    className?: string;
+  }
+
+  export default function PageShell(props: PageShellProps): JSX.Element;
+}
+
+declare module "@/components/PageHeader" {
+  export interface PageHeaderProps {
+    title?: ReactNode;
+    description?: ReactNode;
+    actions?: ReactNode;
+    icon?: ComponentType<{ className?: string }>;
+    className?: string;
+  }
+
+  export default function PageHeader(props: PageHeaderProps): JSX.Element;
+}
+
+declare module "@/components/SectionLoader" {
+  export interface SectionLoaderProps {
+    label?: string;
+    className?: string;
+    size?: string;
+  }
+
+  export default function SectionLoader(props: SectionLoaderProps): JSX.Element;
+}
+
 declare module "@/components/AuthLayout" {
   export interface AuthLayoutProps {
     icon?: ComponentType<{ className?: string }> | null;

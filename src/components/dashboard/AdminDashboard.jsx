@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import StatsCard from '@/components/StatsCard';
 import { Link } from 'react-router-dom';
-import { Users, CheckSquare, Clock, TrendingUp, ArrowRight, AlertCircle } from 'lucide-react';
+import { Users, CheckSquare, Clock, TrendingUp, ArrowRight, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
@@ -10,28 +11,27 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export default function AdminDashboard({ user }) {
   const { data: teamTasks = [] } = useQuery({
-    queryKey: ['teamTasks', user.department_id],
-    queryFn: () => user.department_id
-      ? base44.entities.Task.filter({ department_id: user.department_id })
-      : base44.entities.Task.list(),
+    queryKey: ['teamTasks', user.id],
+    queryFn: () => base44.entities.Task.list(),
     enabled: !!user,
   });
 
   const { data: pendingTimesheets = [] } = useQuery({
-    queryKey: ['pendingTimesheets', user.department_id],
-    queryFn: () => user.department_id
-      ? base44.entities.Timesheet.filter({ department_id: user.department_id, status: 'pending' })
-      : base44.entities.Timesheet.filter({ status: 'pending' }),
+    queryKey: ['pendingTimesheets', user.id],
+    queryFn: () => base44.entities.Timesheet.filter({ status: 'pending' }),
     enabled: !!user,
   });
 
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['teamMembers', user.department_id],
-    queryFn: () => user.department_id
-      ? base44.entities.User.filter({ department_id: user.department_id })
-      : base44.entities.User.list(),
+    queryKey: ['teamMembers', user.id],
+    queryFn: () => base44.entities.User.list(),
     enabled: !!user,
   });
+
+  const assignedStaff = useMemo(
+    () => teamMembers.filter((m) => m.role === 'staff'),
+    [teamMembers],
+  );
 
   const openTasks = teamTasks.filter(t => t.status !== 'completed').length;
   const completedTasks = teamTasks.filter(t => t.status === 'completed').length;
@@ -51,8 +51,22 @@ export default function AdminDashboard({ user }) {
         description="Overview of your team's progress and pending actions."
       />
 
+      {assignedStaff.length === 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-blue-900">
+              No staff users have been allocated to you yet
+            </p>
+            <p className="text-xs text-blue-700 mt-1">
+              Your super admin has not allocated any staff users to you yet. Once staff are assigned to you, you will see their tasks, timesheets, and team activity here.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard label="Team Members" value={teamMembers.length} icon={Users} color="primary" />
+        <StatsCard label="Team Members" value={assignedStaff.length} icon={Users} color="primary" />
         <StatsCard label="Open Tasks" value={openTasks} icon={CheckSquare} color="amber" />
         <StatsCard label="Pending Approvals" value={pendingTimesheets.length} icon={Clock} color="red" sub="timesheets awaiting" />
         <StatsCard

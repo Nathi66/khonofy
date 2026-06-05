@@ -16,6 +16,10 @@
       "type": "string",
       "title": "Department ID"
     },
+    "admin_id": {
+      "type": "string",
+      "title": "Assigned Admin ID"
+    },
     "phone": {
       "type": "string",
       "title": "Phone"

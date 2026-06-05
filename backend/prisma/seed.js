@@ -174,7 +174,7 @@ async function backfillExistingTimeEntries() {
   }
 }
 
-async function upsertDemoUser({ email, fullName, role }, passwordHash, departmentId, designationId) {
+async function upsertDemoUser({ email, fullName, role, adminId }, passwordHash, departmentId, designationId) {
   return prisma.user.upsert({
     where: { email },
     update: {
@@ -183,6 +183,7 @@ async function upsertDemoUser({ email, fullName, role }, passwordHash, departmen
       passwordHash,
       departmentId,
       designationId,
+      adminId: adminId ?? null,
     },
     create: {
       email,
@@ -191,6 +192,7 @@ async function upsertDemoUser({ email, fullName, role }, passwordHash, departmen
       passwordHash,
       departmentId,
       designationId,
+      adminId: adminId ?? null,
     },
   });
 }
@@ -210,7 +212,14 @@ async function main() {
 
   const superuser = createdUsers.find((user) => user.role === UserRole.superuser);
   const admin = createdUsers.find((user) => user.role === UserRole.admin);
-  const staff = createdUsers.find((user) => user.role === UserRole.staff);
+  let staff = createdUsers.find((user) => user.role === UserRole.staff);
+
+  if (staff && admin) {
+    staff = await prisma.user.update({
+      where: { id: staff.id },
+      data: { adminId: admin.id },
+    });
+  }
 
   const internalProject = await ensureProject({
     name: 'Khonofy Operations',

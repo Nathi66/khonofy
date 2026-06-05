@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 import khonoImage from '@/assets/images/khono.png';
+import calendarIcon from '@/assets/images/Calendar.png';
 import sidebarIcon1 from '@/assets/images/side_bar/1.png';
 import sidebarIcon2 from '@/assets/images/side_bar/2.png';
 import sidebarIcon3 from '@/assets/images/side_bar/3.png';
@@ -19,7 +20,7 @@ const SIDEBAR_ICON_CLASS = 'w-10 h-10 flex-shrink-0 object-contain';
 const STAFF_NAV = [
   { path: '/', label: 'Dashboard', iconSrc: sidebarIcon1 },
   { path: '/daily-log', label: 'Task Log', iconSrc: sidebarIcon4 },
-  { path: '/calendar', label: 'Calendar', iconSrc: sidebarIcon6 },
+  { path: '/calendar', label: 'Calendar', iconSrc: calendarIcon },
   { path: '/timesheets', label: 'Timesheets', iconSrc: sidebarIcon3 },
 ];
 
@@ -29,7 +30,7 @@ const ADMIN_NAV = [
   { path: '/tasks', label: 'Task Management', iconSrc: sidebarIcon4 },
   { path: '/timesheets/review', label: 'Timesheet Review', iconSrc: sidebarIcon3 },
   { path: '/admin-reports', label: 'Reports', iconSrc: sidebarIcon5 },
-  { path: '/dept-summary', label: 'Hours vs Estimates', iconSrc: sidebarIcon5 },
+  { path: '/dept-summary', label: 'Estimates', iconSrc: calendarIcon },
   { path: '/projects', label: 'Projects', iconSrc: sidebarIcon6 },
   { path: '/tags', label: 'Tag Management', iconSrc: sidebarIcon7 },
 ];
@@ -93,7 +94,7 @@ export default function Layout() {
             return (
               <Link key={item.path} to={item.path} className={navLinkClass(active)}>
                 <SidebarNavIcon item={item} />
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-bold">{item.label}</span>
               </Link>
             );
           })}
@@ -110,14 +111,14 @@ export default function Layout() {
               aria-hidden="true"
               className={SIDEBAR_ICON_CLASS}
             />
-            <span className="text-sm font-medium">Profile</span>
+            <span className="text-sm font-bold">Profile</span>
           </Link>
         </nav>
 
         <div className="border-t border-sidebar-border p-3 flex-shrink-0">
           <button
             onClick={() => setShowLogoutDialog(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-bold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
             aria-label="Log out"
           >
             <img

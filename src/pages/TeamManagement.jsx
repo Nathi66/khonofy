@@ -10,26 +10,20 @@ export default function TeamManagement() {
   const { data: user } = useCurrentUser();
 
   const { data: teamMembers = [], isLoading } = useQuery({
-    queryKey: ['teamMembers', user?.department_id],
-    queryFn: () => user?.department_id
-      ? base44.entities.User.filter({ department_id: user.department_id })
-      : base44.entities.User.list(),
+    queryKey: ['teamMembers', user?.id],
+    queryFn: () => base44.entities.User.list(),
     enabled: !!user,
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['teamTasks', user?.department_id],
-    queryFn: () => user?.department_id
-      ? base44.entities.Task.filter({ department_id: user.department_id })
-      : base44.entities.Task.list(),
+    queryKey: ['teamTasks', user?.id],
+    queryFn: () => base44.entities.Task.list(),
     enabled: !!user,
   });
 
   const { data: timesheets = [] } = useQuery({
-    queryKey: ['teamTimesheets', user?.department_id],
-    queryFn: () => user?.department_id
-      ? base44.entities.Timesheet.filter({ department_id: user.department_id })
-      : base44.entities.Timesheet.list(),
+    queryKey: ['teamTimesheets', user?.id],
+    queryFn: () => base44.entities.Timesheet.list(),
     enabled: !!user,
   });
 
@@ -156,7 +150,7 @@ export default function TeamManagement() {
             <div className="text-center py-12">
               <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="font-medium text-foreground">No team members yet</p>
-              <p className="text-sm text-muted-foreground">Staff members assigned to your department will appear here.</p>
+              <p className="text-sm text-muted-foreground">Staff members allocated to you by the super admin will appear here.</p>
             </div>
           )}
         </div>

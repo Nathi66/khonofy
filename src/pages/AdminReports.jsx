@@ -30,19 +30,22 @@ export default function AdminReports() {
   });
 
   const { data: allTimesheets = [] } = useQuery({
-    queryKey: ['allTimesheets', applied],
+    queryKey: ['allTimesheets', user?.id, applied],
     queryFn: () => base44.entities.Timesheet.list(),
     select: (ts) => ts.filter(t => t.week_start >= applied.from && t.week_end <= applied.to),
+    enabled: !!user,
   });
 
   const { data: allTasks = [] } = useQuery({
-    queryKey: ['allTasks'],
+    queryKey: ['allTasks', user?.id],
     queryFn: () => base44.entities.Task.list(),
+    enabled: !!user,
   });
 
   const { data: allUsers = [] } = useQuery({
-    queryKey: ['allUsers'],
+    queryKey: ['allUsers', user?.id],
     queryFn: () => base44.entities.User.list(),
+    enabled: !!user,
   });
 
   // Build dept hours data
