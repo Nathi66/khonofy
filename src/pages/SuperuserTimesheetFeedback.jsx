@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Input } from '@/components/ui/input';
 import TimesheetEntriesPanel from '@/components/timesheets/TimesheetEntriesPanel';
 import { Search, ChevronDown, CheckCircle2, XCircle, Clock, AlertCircle, ShieldCheck } from 'lucide-react';
@@ -116,7 +117,7 @@ export default function SuperuserTimesheetFeedback() {
         </div>
       </div>
 
-      {isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading timesheet feedback...</p> : null}
+      {isLoading ? <SectionLoader label="Loading timesheet feedback..." /> : null}
 
       <div className="space-y-4">
         {filtered.map((timesheet) => {

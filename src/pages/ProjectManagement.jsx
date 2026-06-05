@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
+import SectionLoader from '@/components/SectionLoader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -295,7 +296,7 @@ export default function ProjectManagement() {
           )}
         >
           {clientsLoading ? (
-            <p className="text-sm text-muted-foreground">Loading clients...</p>
+            <SectionLoader label="Loading clients..." className="py-6" />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {clients.map((client) => (
@@ -340,7 +341,7 @@ export default function ProjectManagement() {
           )}
         >
           {projectsLoading ? (
-            <p className="text-sm text-muted-foreground">Loading projects...</p>
+            <SectionLoader label="Loading projects..." className="py-6" />
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {projects.map((project) => (

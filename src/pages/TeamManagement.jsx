@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Users } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 
 export default function TeamManagement() {
   const { data: user } = useCurrentUser();
@@ -78,7 +79,7 @@ export default function TeamManagement() {
         </div>
       </div>
 
-      {isLoading && <p className="text-center text-muted-foreground text-sm py-8">Loading team data...</p>}
+      {isLoading ? <SectionLoader label="Loading team data..." /> : null}
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border bg-muted/30">

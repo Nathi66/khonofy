@@ -6,6 +6,7 @@ import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -340,7 +341,7 @@ export default function DailyTaskLog() {
       )}
 
       {/* Active task cards */}
-      {isLoading && <p className="text-muted-foreground text-sm text-center py-6">Loading your tasks...</p>}
+      {isLoading ? <SectionLoader label="Loading your tasks..." className="py-6" /> : null}
       <div className="space-y-3">
         {activeTasks.map(task => {
           const taskEntries = allEntries.filter(e => e.task_id === task.id);

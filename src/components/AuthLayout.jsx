@@ -6,6 +6,7 @@ export default function AuthLayout({
   topImage,
   topImageAlt = "",
   topImageClassName = "w-28 sm:w-32",
+  topImageInCard = false,
   title,
   subtitle,
   titleInCard = false,
@@ -13,10 +14,25 @@ export default function AuthLayout({
   subtitleClassName = "",
   footer = null,
   afterCard = null,
+  compact = false,
   children,
 }) {
+  const showTopImageAboveCard = topImage && !topImageInCard;
+  const showTopImageInCard = topImage && topImageInCard;
+
+  const topImageElement = topImage ? (
+    <div className={cn("flex justify-center select-none", showTopImageInCard ? "mb-4" : "mb-5")}>
+      <img
+        src={topImage}
+        alt={topImageAlt}
+        className={cn("h-auto select-none pointer-events-none", topImageClassName)}
+        draggable={false}
+      />
+    </div>
+  ) : null;
+
   const cardHeader = (title || subtitle) ? (
-    <div className="text-center mb-6">
+    <div className={cn("text-center select-none", compact ? "mb-4" : "mb-6")}>
       {title ? (
         <h1
           className={cn(
@@ -43,28 +59,28 @@ export default function AuthLayout({
   ) : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative overflow-hidden">
-      <div className="w-full max-w-md relative z-10">
-        <div className={cn("text-center", titleInCard ? "mb-6" : "mb-10")}>
-          {topImage ? (
-            <div className="flex justify-center mb-5">
-              <img
-                src={topImage}
-                alt={topImageAlt}
-                className={cn("h-auto select-none pointer-events-none", topImageClassName)}
-              />
-            </div>
-          ) : null}
-          {Icon ? (
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
-              <Icon className="w-7 h-7 text-primary-foreground" aria-hidden="true" />
-            </div>
-          ) : null}
-          {!titleInCard ? cardHeader : null}
-        </div>
+    <div
+      className="fixed inset-0 z-10 flex items-center justify-center px-4 py-6 overflow-hidden overscroll-none"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <div className="w-full max-w-md flex flex-col items-center">
+        {showTopImageAboveCard ? topImageElement : null}
 
-        <div className="overflow-hidden rounded-2xl shadow-sm border border-border">
-          <div className="bg-card p-8">
+        {Icon ? (
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary mb-4">
+            <Icon className="w-7 h-7 text-primary-foreground" aria-hidden="true" />
+          </div>
+        ) : null}
+
+        {!titleInCard ? cardHeader : null}
+
+        <div className="w-full overflow-hidden rounded-2xl shadow-sm border border-border">
+          <div className={cn("bg-card", compact ? "p-6" : "p-8")}>
+            {showTopImageInCard ? topImageElement : null}
             {titleInCard ? cardHeader : null}
             {children}
           </div>
@@ -72,7 +88,7 @@ export default function AuthLayout({
         </div>
 
         {footer ? (
-          <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
+          <p className="text-center text-sm text-muted-foreground mt-6 select-none">{footer}</p>
         ) : null}
       </div>
     </div>

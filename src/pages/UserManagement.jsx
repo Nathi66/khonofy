@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -99,7 +100,7 @@ export default function UserManagement() {
           <span>Department / Designation</span>
         </div>
 
-        {isLoading && <p className="text-center text-muted-foreground text-sm py-8">Loading users...</p>}
+        {isLoading ? <SectionLoader label="Loading users..." /> : null}
 
         <div className="divide-y divide-border">
           {sortedUsers.map((user) => (

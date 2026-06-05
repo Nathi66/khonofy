@@ -1,4 +1,5 @@
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/auth-storage';
+import { beginRequest, endRequest } from '@/lib/loading-bus';
 
 /**
  * Local Khonofy API (Express + PostgreSQL via DATABASE_URL).
@@ -9,7 +10,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 /**
  * @typedef {Record<string, string | number | boolean | null | undefined>} QueryParams
- * @typedef {{ method?: string, body?: unknown, query?: QueryParams, auth?: boolean }} RequestOptions
+ * @typedef {{ method?: string, body?: unknown, query?: QueryParams, auth?: boolean, showGlobalLoader?: boolean }} RequestOptions
  * @typedef {Error & { status?: number, data?: unknown }} ApiError
  */
 
@@ -34,32 +35,38 @@ function buildUrl(path, query = {}) {
  * @param {string} path
  * @param {RequestOptions} [options]
  */
-async function request(path, { method = 'GET', body, query, auth = true } = {}) {
+async function request(path, { method = 'GET', body, query, auth = true, showGlobalLoader = true } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getAuthToken();
   if (auth && token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(buildUrl(path, query), {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  if (showGlobalLoader) beginRequest();
 
-  const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json')
-    ? await response.json()
-    : await response.text();
+  try {
+    const response = await fetch(buildUrl(path, query), {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
 
-  if (!response.ok) {
-    const error = /** @type {ApiError} */ (new Error(
-      typeof data === 'object' && data?.message ? data.message : data || 'Request failed'
-    ));
-    error.status = response.status;
-    error.data = data;
-    throw error;
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      const error = /** @type {ApiError} */ (new Error(
+        typeof data === 'object' && data?.message ? data.message : data || 'Request failed'
+      ));
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    return data;
+  } finally {
+    if (showGlobalLoader) endRequest();
   }
-
-  return data;
 }
 
 /**
@@ -152,7 +159,7 @@ const auth = {
     setAuthToken(result.access_token);
     return result;
   },
-  me: () => request('/api/auth/me'),
+  me: () => request('/api/auth/me', { showGlobalLoader: false }),
   updateMe: (data) => request('/api/auth/me', { method: 'PATCH', body: data }),
   resetPasswordRequest: (email) =>
     request('/api/auth/forgot-password', { method: 'POST', body: { email }, auth: false }),

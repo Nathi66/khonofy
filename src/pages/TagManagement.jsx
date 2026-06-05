@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -104,7 +105,7 @@ function PaginatedTable({
       </div>
 
       {isLoading ? (
-        <p className="text-center text-muted-foreground text-sm py-8">Loading {title.toLowerCase()}...</p>
+        <SectionLoader label={`Loading ${title.toLowerCase()}...`} />
       ) : (
         <>
           <div className={`grid gap-px bg-border ${columns === 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-2'}`}>
@@ -330,7 +331,7 @@ export default function TagManagement() {
               ) : null}
             </span>
           </div>
-          {tagsLoading && <p className="text-center text-muted-foreground text-sm py-8">Loading tags...</p>}
+          {tagsLoading ? <SectionLoader label="Loading tags..." /> : null}
           <div className="divide-y divide-border">
             {visibleTags.map((tag) => (
               <div key={tag.id} className="grid grid-cols-[auto_1fr_1fr_80px] gap-4 px-4 py-3 items-center hover:bg-muted/20 transition-colors">

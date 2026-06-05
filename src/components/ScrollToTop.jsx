@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 
+const AUTH_PATHS = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
+
 const getHashId = (hash) => {
   const rawId = hash.slice(1);
 
@@ -17,6 +19,7 @@ export default function ScrollToTop() {
 
   useEffect(() => {
     if (navigationType === "POP") return;
+    if (AUTH_PATHS.has(pathname)) return;
 
     if (hash) {
       const id = getHashId(hash);

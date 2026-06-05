@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Activity, Filter } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 
 const ACTION_COLORS = {
   'Created task': 'bg-blue-100 text-blue-700',
@@ -85,9 +86,7 @@ export default function AuditTrail() {
           <span>Details</span>
           <span>Entity</span>
         </div>
-        {isLoading && (
-          <p className="text-center text-muted-foreground text-sm py-8">Loading audit log...</p>
-        )}
+        {isLoading ? <SectionLoader label="Loading audit log..." /> : null}
         <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
           {filtered.map(log => (
             <div key={log.id} className="grid grid-cols-[160px_1fr_120px_1fr_140px] gap-4 px-4 py-3 items-start hover:bg-muted/20 transition-colors text-sm">

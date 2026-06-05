@@ -30,12 +30,15 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import GlobalFloatingActions from './components/GlobalFloatingActions';
+import GlobalLoadingIndicator from './components/GlobalLoadingIndicator';
+import { LoadingProvider } from '@/lib/LoadingContext';
 
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} suppressHydrationWarning>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
+          <LoadingProvider>
           <Router>
             <ScrollToTop />
             <Routes>
@@ -67,8 +70,10 @@ function App() {
             </Routes>
             <GlobalFloatingActions />
           </Router>
+          <GlobalLoadingIndicator />
           <Toaster />
           <SonnerToaster richColors closeButton position="top-right" />
+          </LoadingProvider>
         </QueryClientProvider>
       </AuthProvider>
     </ThemeProvider>

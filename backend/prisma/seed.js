@@ -18,18 +18,18 @@ const DEMO_PASSWORD = 'Demo123!';
 
 const DEMO_USERS = [
   {
-    email: 'luis@khonofy.local',
-    fullName: 'Luis',
+    email: 'james@khonofy.local',
+    fullName: 'James',
     role: UserRole.superuser,
   },
   {
-    email: 'john@khonofy.local',
-    fullName: 'John',
+    email: 'chris@khonofy.local',
+    fullName: 'Chris',
     role: UserRole.admin,
   },
   {
-    email: 'nathii@khonofy.local',
-    fullName: 'Nathii',
+    email: 'mac@khonofy.local',
+    fullName: 'Mac',
     role: UserRole.staff,
   },
 ];
@@ -243,11 +243,11 @@ async function main() {
 
   console.log('Demo accounts seeded (password for all: %s)', DEMO_PASSWORD);
   console.log('');
-  console.log('| Role      | Name   | Email                 |');
-  console.log('|-----------|--------|-----------------------|');
-  console.log('| Superuser | Luis   | luis@khonofy.local    |');
-  console.log('| Admin     | John   | john@khonofy.local    |');
-  console.log('| Staff     | Nathii | nathii@khonofy.local  |');
+  console.log('| Role      | Name  | Email                |');
+  console.log('|-----------|-------|----------------------|');
+  console.log('| Superuser | James | james@khonofy.local  |');
+  console.log('| Admin     | Chris | chris@khonofy.local  |');
+  console.log('| Staff     | Mac   | mac@khonofy.local    |');
 }
 
 main()

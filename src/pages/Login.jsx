@@ -6,10 +6,9 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Eye, EyeOff, Loader2, Github } from "lucide-react";
+import { Mail, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import khonoImage from "@/assets/images/khono.png";
-import GoogleIcon from "@/components/GoogleIcon";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -26,13 +25,32 @@ export default function Login() {
     }
   }, [authChecked, isAuthenticated, navigate]);
 
+  useEffect(() => {
+    const isTypingKey = (event) => {
+      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        return true;
+      }
+      return event.key === "Backspace" || event.key === "Delete";
+    };
+
+    const handleKeyDown = (event) => {
+      const target = event.target;
+      const isEmailOrPassword =
+        target instanceof HTMLInputElement &&
+        (target.id === "email" || target.id === "password");
+
+      if (!isEmailOrPassword && isTypingKey(event)) {
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const trimmedEmail = email.trim();
   const passwordValue = password;
   const isFormComplete = Boolean(trimmedEmail && passwordValue);
-
-  const handleOAuth = () => {
-    setError("Social sign-in is not available yet. Please use your email and password.");
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,13 +83,31 @@ export default function Login() {
         icon={null}
         topImage={khonoImage}
         topImageAlt="Khonofy"
-        topImageClassName="w-42 sm:w-48"
+        topImageClassName="w-[22.05rem] sm:w-[25.2rem]"
         title="KHONOFY"
         subtitle="Smart time tracking, task management & reporting platform for teams"
         titleInCard
+        compact
         afterCard={errorBanner}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          onMouseDown={(event) => {
+            const target = event.target;
+            const element = target instanceof Element ? target : null;
+            const isInteractive =
+              target instanceof HTMLInputElement ||
+              target instanceof HTMLButtonElement ||
+              target instanceof HTMLLabelElement ||
+              element?.closest("button") ||
+              element?.closest("label");
+
+            if (!isInteractive) {
+              event.preventDefault();
+            }
+          }}
+        >
           <div className="space-y-2">
             <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
             <div className="relative">
@@ -80,7 +116,8 @@ export default function Login() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@example.com"
+                autoFocus
+                placeholder="you@khonology.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 h-12 rounded-full"
@@ -95,7 +132,7 @@ export default function Login() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder="password123#"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-12 rounded-full pl-4 pr-12"
@@ -104,58 +141,20 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-4 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
+                )}
               </button>
             </div>
           </div>
           <Button type="submit" className="w-full h-12 rounded-full font-medium bg-primary hover:bg-primary/90 text-white" disabled={loading || !isFormComplete}>
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Logging in...
-              </>
-            ) : (
-              "LOGIN"
-            )}
+            {loading ? "Logging in..." : "LOGIN"}
           </Button>
-
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with Google (coming soon)">
-              <GoogleIcon className="w-5 h-5" />
-            </button>
-            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with Microsoft (coming soon)">
-              <svg className="w-5 h-5" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-                <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-                <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-                <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-              </svg>
-            </button>
-            <button type="button" onClick={handleOAuth} className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center opacity-60" aria-label="Continue with GitHub (coming soon)">
-              <Github className="w-5 h-5 text-black" />
-            </button>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Button
-              type="button"
-              className="h-12 rounded-full bg-[#7a7a7a] hover:bg-[#6b6b6b] text-white font-semibold uppercase"
-              onClick={() => navigate(-1)}
-            >
-              BACK
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 rounded-full bg-transparent border border-foreground/30 text-foreground font-semibold uppercase hover:bg-muted/40"
-              onClick={() => navigate("/forgot-password")}
-            >
-              FORGOT PASSWORD
-            </Button>
-          </div>
         </form>
       </AuthLayout>
     </>

@@ -1,0 +1,24 @@
+______-----_______LOGIN credentials______-----_______
+
+
+###Superuser###
+Name: James
+email: james@khonofy.local
+password: Demo123!
+
+###Admin###
+Name: Chris
+email: chris@khonofy.local
+password: Demo123!
+
+###Staff###
+Name: Mac
+email: mac@khonofy.local
+password: Demo123!
+
+To re-seed later:
+cd backend
+npm run db:seed
+
+running the frontend in another port:
+npm run dev -- --port 5174

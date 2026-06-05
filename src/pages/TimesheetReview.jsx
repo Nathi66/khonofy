@@ -6,6 +6,7 @@ import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import TimesheetEntriesPanel from '@/components/timesheets/TimesheetEntriesPanel';
@@ -145,7 +146,7 @@ export default function TimesheetReview() {
         ))}
       </div>
 
-      {isLoading ? <p className="py-8 text-center text-sm text-muted-foreground">Loading timesheets...</p> : null}
+      {isLoading ? <SectionLoader label="Loading timesheets..." /> : null}
 
       <div className="space-y-4">
         {filtered.map((timesheet) => {

@@ -6,7 +6,8 @@ import { getApiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock } from "lucide-react";
+import DiscLoader from "@/components/DiscLoader";
 import AuthLayout from "@/components/AuthLayout";
 import khonoImage from "@/assets/images/khono.png";
 
@@ -134,7 +135,7 @@ export default function Register() {
           <Button type="submit" className="w-full h-12 rounded-full font-medium" disabled={loading || !isFormComplete}>
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <DiscLoader size="sm" className="mr-2 gap-1.5" label="Creating account" />
                 Creating account...
               </>
             ) : (

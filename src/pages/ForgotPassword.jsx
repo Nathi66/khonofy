@@ -4,7 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, ArrowLeft, Loader2 } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
+import DiscLoader from "@/components/DiscLoader";
 import AuthLayout from "@/components/AuthLayout";
 
 export default function ForgotPassword() {
@@ -62,7 +63,7 @@ export default function ForgotPassword() {
           <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <DiscLoader size="sm" className="mr-2 gap-1.5" label="Sending" />
                 Sending...
               </>
             ) : (

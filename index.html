@@ -6,6 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
     <title>Base44 APP</title>
+    <script>
+      (function () {
+        var key = 'khonofy_ui_scale';
+        var scale = parseFloat(localStorage.getItem(key));
+        if (!isFinite(scale)) scale = 0.6;
+        scale = Math.min(1, Math.max(0.6, scale));
+        document.documentElement.style.setProperty('--ui-scale', String(scale));
+        document.documentElement.dataset.uiScale = String(scale);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

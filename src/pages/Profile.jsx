@@ -6,11 +6,16 @@ import Cropper from 'react-easy-crop';
 import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useUiScale } from '@/hooks/useUiScale';
+import { formatUiScalePercent } from '@/lib/ui-scale';
 import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
+import DiscLoader from '@/components/DiscLoader';
+import PageLoader from '@/components/PageLoader';
 import PageShell from '@/components/PageShell';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -27,13 +32,14 @@ import {
   Camera,
   Check,
   ImageIcon,
-  Loader2,
   Mail,
   Phone,
   Save,
   Shield,
   Upload,
   User,
+  Monitor,
+  RotateCcw,
 } from 'lucide-react';
 
 const ROLE_LABELS = { superuser: 'Super User', admin: 'Admin', staff: 'Staff' };
@@ -133,6 +139,7 @@ function getProfileImageUrl(user, imageKitConfig) {
 
 export default function Profile() {
   const { data: user, isLoading } = useCurrentUser();
+  const { scale: uiScale, setScale: setUiScale, resetScale: resetUiScale, minScale, maxScale, defaultScale } = useUiScale();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const revokePreviewRef = useRef(null);
@@ -360,9 +367,9 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full p-12">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
+      <PageShell>
+        <PageLoader label="Loading profile..." />
+      </PageShell>
     );
   }
 
@@ -409,6 +416,50 @@ export default function Profile() {
                   {ROLE_LABELS[user?.role] || 'Staff'}
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h3 className="font-semibold text-foreground mb-1 flex items-center gap-2">
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+              Display Settings
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Adjust how large the app appears in your browser. Your choice is saved on this device.
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Interface size</span>
+                <span className="font-semibold text-foreground">{formatUiScalePercent(uiScale)}</span>
+              </div>
+
+              <Slider
+                value={[Math.round(uiScale * 100)]}
+                min={Math.round(minScale * 100)}
+                max={Math.round(maxScale * 100)}
+                step={5}
+                onValueChange={(value) => setUiScale(value[0] / 100)}
+                aria-label="Interface size"
+              />
+
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{formatUiScalePercent(minScale)}</span>
+                <span>Default {formatUiScalePercent(defaultScale)}</span>
+                <span>{formatUiScalePercent(maxScale)}</span>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={resetUiScale}
+                disabled={uiScale === defaultScale}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset to default ({formatUiScalePercent(defaultScale)})
+              </Button>
             </div>
           </div>
 
@@ -545,7 +596,7 @@ export default function Profile() {
               {saved ? (
                 <><Check className="w-4 h-4" /> Saved!</>
               ) : saveMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                <><DiscLoader size="sm" className="gap-1.5" label="Saving" /> Saving...</>
               ) : (
                 <><Save className="w-4 h-4" /> Save Changes</>
               )}
@@ -626,7 +677,7 @@ export default function Profile() {
             <Button onClick={handleUploadCroppedImage} disabled={uploadingPhoto} className="gap-2">
               {uploadingPhoto ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <DiscLoader size="sm" className="gap-1.5" label="Uploading" />
                   Uploading...
                 </>
               ) : (

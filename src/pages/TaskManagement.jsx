@@ -6,6 +6,7 @@ import { logActivity } from '@/utils/activityLogger';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/PageHeader';
 import PageShell from '@/components/PageShell';
+import SectionLoader from '@/components/SectionLoader';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -211,9 +212,7 @@ export default function TaskManagement() {
           <span>Assignee</span>
           <span className="text-right">Actions</span>
         </div>
-        {isLoading && (
-          <p className="text-center text-muted-foreground text-sm py-8">Loading tasks...</p>
-        )}
+        {isLoading ? <SectionLoader label="Loading tasks..." /> : null}
         {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
             <CheckSquare className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
