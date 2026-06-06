@@ -46,6 +46,40 @@ const EMPTY_FORM = {
   project_name: '',
 };
 
+function buildTaskPayload(form, user) {
+  /** @type {Record<string, unknown>} */
+  const payload = {
+    title: form.title.trim(),
+    priority: form.priority,
+    status: form.status,
+    created_by_id: user?.id,
+  };
+
+  const description = form.description?.trim();
+  if (description) payload.description = description;
+
+  if (form.due_date) payload.due_date = form.due_date;
+
+  if (form.assigned_to) {
+    payload.assigned_to = form.assigned_to;
+    payload.assigned_to_name = form.assigned_to_name || undefined;
+  }
+
+  if (form.project_id) {
+    payload.project_id = form.project_id;
+    payload.project_name = form.project_name || undefined;
+  }
+
+  if (user?.department_id) payload.department_id = user.department_id;
+
+  if (form.estimated_hours !== '' && form.estimated_hours != null) {
+    const hours = parseFloat(form.estimated_hours);
+    if (Number.isFinite(hours)) payload.estimated_hours = hours;
+  }
+
+  return payload;
+}
+
 export default function TaskManagement() {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -101,14 +135,31 @@ export default function TaskManagement() {
       });
       if (user) await logActivity(user, 'Created task', 'Task', task.id, `"${task.title}"`);
     },
+    onError: (error) => {
+      toast({
+        title: 'Could not create task',
+        description: error?.message || 'Please check the form and try again.',
+        variant: 'destructive',
+        centered: true,
+      });
+    },
   });
 
   const updateTask = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Task.update(id, data),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['myTasks'] });
       if (user) await logActivity(user, 'Updated task', 'Task', editingTask?.id, `"${form.title}"`);
       closeForm();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Could not update task',
+        description: error?.message || 'Please check the form and try again.',
+        variant: 'destructive',
+        centered: true,
+      });
     },
   });
 
@@ -142,12 +193,7 @@ export default function TaskManagement() {
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;
-    const payload = {
-      ...form,
-      created_by_id: user?.id,
-      department_id: user?.department_id || '',
-      estimated_hours: form.estimated_hours ? parseFloat(form.estimated_hours) : undefined,
-    };
+    const payload = buildTaskPayload(form, user);
     if (editingTask) {
       updateTask.mutate({ id: editingTask.id, data: payload });
     } else {

@@ -305,7 +305,9 @@ async function scopeWhere(resource, user) {
       case 'users':
         return { OR: [{ id: user.id }, { adminId: user.id }] };
       case 'tasks':
-        return staffIds.length ? { assignedTo: { in: staffIds } } : NO_MATCH;
+        return staffIds.length
+          ? { OR: [{ assignedTo: { in: staffIds } }, { createdById: user.id }] }
+          : { createdById: user.id };
       case 'time-entries':
       case 'timesheets':
       case 'activity-logs':
@@ -585,9 +587,55 @@ async function validateProjectAndClient(payload) {
     if (!payload.departmentId && project.departmentId) {
       payload.departmentId = project.departmentId;
     }
-  } else if (payload.projectName === '') {
+  } else if (payload.projectName === '' || payload.projectId === '') {
+    payload.projectId = null;
     payload.projectName = null;
   }
+}
+
+const TASK_DATA_FIELDS = new Set([
+  'title',
+  'description',
+  'dueDate',
+  'priority',
+  'status',
+  'assignedTo',
+  'assignedToName',
+  'projectId',
+  'projectName',
+  'departmentId',
+  'estimatedHours',
+  'createdById',
+]);
+
+function emptyToNull(value) {
+  if (value === undefined || value === null || value === '') return null;
+  return value;
+}
+
+function sanitizeTaskPayload(payload) {
+  const next = { ...payload };
+
+  for (const field of ['description', 'assignedTo', 'assignedToName', 'projectId', 'projectName', 'departmentId', 'createdById']) {
+    if (field in next) next[field] = emptyToNull(next[field]);
+  }
+
+  if (next.estimatedHours === '' || next.estimatedHours === undefined || next.estimatedHours === null) {
+    next.estimatedHours = null;
+  } else {
+    const hours = Number(next.estimatedHours);
+    next.estimatedHours = Number.isFinite(hours) ? hours : null;
+  }
+
+  if (next.dueDate === '') next.dueDate = null;
+
+  delete next.clientId;
+  delete next.clientName;
+  delete next.billable;
+
+  return Object.fromEntries(
+    Object.entries(next).filter(([key, value]) => TASK_DATA_FIELDS.has(key) && value !== undefined)
+  );
 }
 
 async function listAiProjectsForUser(user) {
@@ -768,7 +816,7 @@ async function refreshTimesheetTotals(timesheetId) {
 
 async function handleCreate(resource, user, body) {
   const cfg = resourceConfig(resource);
-  const payload = coerceDates(cfg.model, normalizeInput(body));
+  let payload = coerceDates(cfg.model, normalizeInput(body));
 
   if (cfg.model === 'task') {
     required(payload.title, 'title');
@@ -782,6 +830,7 @@ async function handleCreate(resource, user, body) {
     payload.createdById = user.id;
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
     await validateProjectAndClient(payload);
+    payload = sanitizeTaskPayload(payload);
   }
 
   if (cfg.model === 'timeEntry') {
@@ -935,6 +984,7 @@ async function handleUpdate(resource, user, id, body) {
       if (!staffIds.includes(payload.assignedTo)) throw new Error('Forbidden');
     }
     await validateProjectAndClient(payload);
+    payload = sanitizeTaskPayload(payload);
   }
 
   if (cfg.model === 'project') {
