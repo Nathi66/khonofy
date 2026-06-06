@@ -147,6 +147,36 @@ async function getAssignedStaffIds(adminId) {
   return staff.map((s) => s.id);
 }
 
+async function assertAdminCanAssignStaff(admin, staffId, { previousAssignee = null } = {}) {
+  if (!staffId) return;
+
+  const staffUser = await prisma.user.findUnique({ where: { id: staffId } });
+  if (!staffUser || staffUser.role !== 'staff') {
+    throw new Error('Assigned user must be a staff member');
+  }
+
+  const staffIds = await getAssignedStaffIds(admin.id);
+  if (staffIds.includes(staffId)) return;
+
+  if (previousAssignee && previousAssignee === staffId) return;
+
+  throw new Error('You can only assign tasks to staff on your team');
+}
+
+async function resolveTaskAssignee(payload) {
+  if (!payload.assignedTo) {
+    if (payload.assignedToName) payload.assignedToName = null;
+    return;
+  }
+
+  const staffUser = await prisma.user.findUnique({ where: { id: payload.assignedTo } });
+  if (!staffUser || staffUser.role !== 'staff') {
+    throw new Error('Assigned user must be a staff member');
+  }
+
+  payload.assignedToName = staffUser.fullName || staffUser.email || payload.assignedToName || '';
+}
+
 async function validateUserAdminAssignment({ role, adminId }) {
   if (adminId === null || adminId === undefined || adminId === '') return;
   if (role !== 'staff') {
@@ -824,8 +854,10 @@ async function handleCreate(resource, user, body) {
       throw new Error('Forbidden');
     }
     if (isAdmin(user) && payload.assignedTo) {
-      const staffIds = await getAssignedStaffIds(user.id);
-      if (!staffIds.includes(payload.assignedTo)) throw new Error('Forbidden');
+      await assertAdminCanAssignStaff(user, payload.assignedTo);
+    }
+    if (payload.assignedTo) {
+      await resolveTaskAssignee(payload);
     }
     payload.createdById = user.id;
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
@@ -981,7 +1013,10 @@ async function handleUpdate(resource, user, id, body) {
   let payload = coerceDates(cfg.model, normalizeInput(body));
   if (cfg.model === 'task') {
     if (isAdmin(user) && payload.assignedTo) {
-      if (!staffIds.includes(payload.assignedTo)) throw new Error('Forbidden');
+      await assertAdminCanAssignStaff(user, payload.assignedTo, { previousAssignee: existing.assignedTo });
+    }
+    if (payload.assignedTo !== undefined) {
+      await resolveTaskAssignee(payload);
     }
     await validateProjectAndClient(payload);
     payload = sanitizeTaskPayload(payload);

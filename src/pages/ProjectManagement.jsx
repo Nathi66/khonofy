@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { logActivity } from '@/utils/activityLogger';
+import jsPDF from 'jspdf';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import SectionLoader from '@/components/SectionLoader';
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Building2, FolderKanban, Pencil, Plus, Clock, Users } from 'lucide-react';
+import { Building2, FolderKanban, Pencil, Plus, Clock, Users, FileDown, FileText } from 'lucide-react';
 
 const EMPTY_CLIENT_FORM = { name: '', description: '', is_active: true };
 const EMPTY_PROJECT_FORM = {
@@ -161,6 +162,117 @@ function EntitySection({ title, description, icon: Icon, children, action }) {
   );
 }
 
+function escapeCsvValue(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildProjectRows(projects, clientsById, departmentsById, approvedStatsByProject) {
+  return projects.map((project) => {
+    const approvedStats = approvedStatsByProject[project.id];
+    return {
+      name: project.name || '',
+      client: project.client_name || clientsById.get(project.client_id)?.name || 'Unassigned',
+      department: departmentsById.get(project.department_id)?.name || 'Shared',
+      status: project.is_active ? 'Active' : 'Inactive',
+      billable: project.is_billable_default ? 'Yes' : 'No',
+      approvedHours: approvedStats?.totalHours ? `${approvedStats.totalHours.toFixed(1)}h` : '0h',
+      description: project.description || '',
+      color: project.color || '',
+    };
+  });
+}
+
+function exportProjectsCsv(rows) {
+  const headers = ['Project Name', 'Client', 'Department', 'Status', 'Billable Default', 'Approved Hours', 'Description', 'Color'];
+  const csv = [
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map((row) => [
+      row.name,
+      row.client,
+      row.department,
+      row.status,
+      row.billable,
+      row.approvedHours,
+      row.description,
+      row.color,
+    ].map(escapeCsvValue).join(',')),
+  ].join('\r\n');
+
+  downloadFile(`projects-export-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8;');
+}
+
+function exportProjectsPdf(rows) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 32;
+  const lineHeight = 14;
+  const titleY = 36;
+  const headers = ['Project', 'Client', 'Department', 'Status', 'Billable', 'Approved Hours'];
+  const columnWidths = [150, 120, 120, 70, 70, 90];
+  const xPositions = [margin, 182, 308, 434, 514, 590];
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Project Export', margin, titleY);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generated on ${new Date().toLocaleString()}`, margin, titleY + 18);
+
+  let y = titleY + 44;
+
+  const drawHeader = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin - 4, y - 12, pageWidth - margin * 2 + 8, 18, 'F');
+    headers.forEach((header, index) => {
+      doc.text(header, xPositions[index], y);
+    });
+    y += 18;
+    doc.setFont('helvetica', 'normal');
+  };
+
+  const ensureSpace = () => {
+    if (y > pageHeight - 40) {
+      doc.addPage();
+      y = 36;
+      drawHeader();
+    }
+  };
+
+  drawHeader();
+
+  rows.forEach((row) => {
+    const values = [row.name, row.client, row.department, row.status, row.billable, row.approvedHours];
+    const wrappedLines = values.map((value, index) =>
+      doc.splitTextToSize(String(value || ''), columnWidths[index])
+    );
+    const rowHeight = Math.max(...wrappedLines.map((lines) => lines.length)) * lineHeight + 8;
+    ensureSpace();
+
+    values.forEach((value, index) => {
+      const lines = wrappedLines[index];
+      doc.text(lines, xPositions[index], y);
+    });
+
+    y += rowHeight;
+  });
+
+  doc.save(`projects-export-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 export default function ProjectManagement() {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -220,6 +332,16 @@ export default function ProjectManagement() {
   const activeClientMap = useMemo(
     () => new Map(clients.map((client) => [client.id, client])),
     [clients]
+  );
+
+  const departmentMap = useMemo(
+    () => new Map(departments.map((department) => [department.id, department])),
+    [departments]
+  );
+
+  const exportRows = useMemo(
+    () => buildProjectRows(projects, activeClientMap, departmentMap, approvedStatsByProject),
+    [projects, activeClientMap, departmentMap, approvedStatsByProject]
   );
 
   const createClient = useMutation({
@@ -343,6 +465,14 @@ export default function ProjectManagement() {
   const bulkClientNames = parseBulkNames(bulkClientText);
   const bulkProjectNames = parseBulkNames(bulkProjectText);
 
+  const handleExportCsv = () => {
+    exportProjectsCsv(exportRows);
+  };
+
+  const handleExportPdf = () => {
+    exportProjectsPdf(exportRows);
+  };
+
   function openCreateClientDialog() {
     setEditingClient(null);
     setClientForm(EMPTY_CLIENT_FORM);
@@ -452,10 +582,24 @@ export default function ProjectManagement() {
           description="Projects can carry a client, color, department, and default billable setting. Approved timesheet hours are shown per project."
           icon={FolderKanban}
           action={(
-            <Button onClick={openCreateProjectDialog} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Project
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {isSuperuser ? (
+                <>
+                  <Button variant="outline" onClick={handleExportCsv} className="gap-2">
+                    <FileText className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" onClick={handleExportPdf} className="gap-2">
+                    <FileDown className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                </>
+              ) : null}
+              <Button onClick={openCreateProjectDialog} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Project
+              </Button>
+            </div>
           )}
         >
           {projectsLoading ? (

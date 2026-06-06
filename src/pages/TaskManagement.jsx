@@ -46,13 +46,12 @@ const EMPTY_FORM = {
   project_name: '',
 };
 
-function buildTaskPayload(form, user) {
+function buildTaskPayload(form, user, { isEdit = false } = {}) {
   /** @type {Record<string, unknown>} */
   const payload = {
     title: form.title.trim(),
     priority: form.priority,
     status: form.status,
-    created_by_id: user?.id,
   };
 
   const description = form.description?.trim();
@@ -63,18 +62,29 @@ function buildTaskPayload(form, user) {
   if (form.assigned_to) {
     payload.assigned_to = form.assigned_to;
     payload.assigned_to_name = form.assigned_to_name || undefined;
+  } else if (isEdit) {
+    payload.assigned_to = null;
+    payload.assigned_to_name = null;
   }
 
   if (form.project_id) {
     payload.project_id = form.project_id;
     payload.project_name = form.project_name || undefined;
+  } else if (isEdit) {
+    payload.project_id = null;
+    payload.project_name = null;
   }
 
-  if (user?.department_id) payload.department_id = user.department_id;
+  if (!isEdit) {
+    payload.created_by_id = user?.id;
+    if (user?.department_id) payload.department_id = user.department_id;
+  }
 
   if (form.estimated_hours !== '' && form.estimated_hours != null) {
     const hours = parseFloat(form.estimated_hours);
     if (Number.isFinite(hours)) payload.estimated_hours = hours;
+  } else if (isEdit) {
+    payload.estimated_hours = null;
   }
 
   return payload;
@@ -94,7 +104,8 @@ export default function TaskManagement() {
     queryKey: ['tasks', user?.id, user?.role],
     queryFn: () => {
       if (!user) return [];
-      if (user.role === 'superuser' || user.role === 'admin') return base44.entities.Task.list();
+      if (user.role === 'superuser') return base44.entities.Task.list();
+      if (user.role === 'admin') return base44.entities.Task.filter({ created_by_id: user.id });
       return base44.entities.Task.filter({ created_by_id: user.id });
     },
     enabled: !!user,
@@ -167,6 +178,7 @@ export default function TaskManagement() {
     mutationFn: (id) => base44.entities.Task.delete(id),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['myTasks'] });
       if (user) await logActivity(user, 'Deleted task', 'Task', deletingTask?.id, `"${deletingTask?.title}"`);
       setDeletingTask(null);
     },
@@ -193,7 +205,7 @@ export default function TaskManagement() {
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;
-    const payload = buildTaskPayload(form, user);
+    const payload = buildTaskPayload(form, user, { isEdit: !!editingTask });
     if (editingTask) {
       updateTask.mutate({ id: editingTask.id, data: payload });
     } else {

@@ -24,11 +24,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Tag, Plus, Pencil, Trash2, Building2, BadgeCheck } from 'lucide-react';
 
 const PRESET_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#64748b'];
 const EMPTY_FORM = { name: '', color: '#6366f1', description: '' };
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 20;
 const TAG_PAGE_SIZE = 7;
 
 function uniqueLines(value) {
@@ -60,6 +61,7 @@ function PaginatedTable({
   isLoading,
   emptyTitle,
   emptyDescription,
+  search,
   renderRow,
   columns = 3,
 }) {
@@ -79,8 +81,10 @@ function PaginatedTable({
           </h2>
           <p className="text-sm text-muted-foreground mt-1">{description}</p>
         </div>
-        {items.length > PAGE_SIZE ? (
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-2">
+          {search ? <div className="w-full sm:w-auto">{search}</div> : null}
+          {items.length > PAGE_SIZE ? (
+            <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -100,8 +104,9 @@ function PaginatedTable({
             >
               Next
             </Button>
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {isLoading ? (
@@ -135,10 +140,18 @@ export default function TagManagement() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkDialog, setBulkDialog] = useState(null);
   const [bulkText, setBulkText] = useState('');
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [designationSearch, setDesignationSearch] = useState('');
+  const [detailView, setDetailView] = useState(null);
 
   const { data: tags = [], isLoading: tagsLoading } = useQuery({
     queryKey: ['tags'],
     queryFn: () => base44.entities.Tag.list(),
+  });
+
+  const { data: timeEntries = [] } = useQuery({
+    queryKey: ['tagUsageTimeEntries'],
+    queryFn: () => base44.entities.TimeEntry.list(),
   });
 
   const { data: departments = [], isLoading: departmentsLoading } = useQuery({
@@ -153,9 +166,45 @@ export default function TagManagement() {
     enabled: isSuperuser,
   });
 
+  const { data: users = [] } = useQuery({
+    queryKey: ['tagUsageUsers'],
+    queryFn: () => base44.entities.User.list(),
+    enabled: isSuperuser,
+  });
+
   const existingDepartmentNames = new Set(departments.map((item) => item.name.trim().toLowerCase()));
   const existingDesignationNames = new Set(designations.map((item) => item.name.trim().toLowerCase()));
   const [tagPage, setTagPage] = useState(1);
+
+  const tagUsageById = timeEntries.reduce((acc, entry) => {
+    if (!entry.tag_id) return acc;
+    acc[entry.tag_id] = (acc[entry.tag_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  const departmentUsageById = users.reduce((acc, userRecord) => {
+    if (!userRecord.department_id) return acc;
+    acc[userRecord.department_id] = (acc[userRecord.department_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  const designationUsageById = users.reduce((acc, userRecord) => {
+    if (!userRecord.designation_id) return acc;
+    acc[userRecord.designation_id] = (acc[userRecord.designation_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filteredDepartments = departments.filter((department) =>
+    department.name.toLowerCase().includes(departmentSearch.trim().toLowerCase())
+  );
+  const filteredDesignations = designations.filter((designation) =>
+    designation.name.toLowerCase().includes(designationSearch.trim().toLowerCase())
+  );
+  const detailUsers = detailView?.type === 'department'
+    ? users.filter((item) => item.department_id === detailView.id)
+    : detailView?.type === 'designation'
+      ? users.filter((item) => item.designation_id === detailView.id)
+      : [];
 
   const createTag = useMutation({
     mutationFn: (data) => base44.entities.Tag.create(data),
@@ -300,10 +349,11 @@ export default function TagManagement() {
         </div>
 
         <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_1fr_80px] gap-4 px-4 py-3 border-b border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <div className="grid grid-cols-[auto_1fr_1fr_120px_80px] gap-4 px-4 py-3 border-b border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             <span>Color</span>
             <span>Name</span>
-            <span>Description</span>
+            <span>Usage Summary</span>
+          <span>Usage</span>
             <span className="text-right flex items-center justify-end gap-2">
               <span>Actions</span>
               {tags.length > TAG_PAGE_SIZE ? (
@@ -334,7 +384,7 @@ export default function TagManagement() {
           {tagsLoading ? <SectionLoader label="Loading tags..." /> : null}
           <div className="divide-y divide-border">
             {visibleTags.map((tag) => (
-              <div key={tag.id} className="grid grid-cols-[auto_1fr_1fr_80px] gap-4 px-4 py-3 items-center hover:bg-muted/20 transition-colors">
+              <div key={tag.id} className="grid grid-cols-[auto_1fr_1fr_120px_80px] gap-4 px-4 py-3 items-center hover:bg-muted/20 transition-colors">
                 <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#6366f1' }} />
                 <div>
                   <span
@@ -344,7 +394,12 @@ export default function TagManagement() {
                     {tag.name}
                   </span>
                 </div>
-                <span className="text-sm text-muted-foreground">{tag.description || '—'}</span>
+                <span className="text-sm text-muted-foreground">
+                  {tag.description || 'Used for organizing and filtering time entries.'}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {tagUsageById[tag.id] || 0} time entr{(tagUsageById[tag.id] || 0) === 1 ? 'y' : 'ies'}
+                </span>
                 <div className="flex items-center justify-end gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openEdit(tag)}>
                     <Pencil className="w-3.5 h-3.5" />
@@ -369,33 +424,133 @@ export default function TagManagement() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <PaginatedTable
               title="Departments"
-              description="Browse departments in pages of six."
+              description="Browse departments in pages of twenty."
               icon={Building2}
-              items={departments}
+              items={filteredDepartments}
               isLoading={departmentsLoading}
-              emptyTitle="No departments yet"
-              emptyDescription="Add departments here so users can choose them in their profile."
-              columns={3}
+              emptyTitle={departmentSearch.trim() ? 'No departments match your search' : 'No departments yet'}
+              emptyDescription={
+                departmentSearch.trim()
+                  ? 'Try a different department name.'
+                  : 'Add departments here so users can choose them in their profile.'
+              }
+              columns={1}
+              search={
+                <Input
+                  type="search"
+                  placeholder="Search departments..."
+                  value={departmentSearch}
+                  onChange={(e) => {
+                    setDepartmentSearch(e.target.value);
+                  }}
+                  className="w-full sm:w-72 bg-background border-border"
+                />
+              }
               renderRow={(department) => (
-                <div key={department.id} className="bg-card px-4 py-3 min-h-[56px] flex items-center">
-                  <p className="font-medium text-foreground truncate">{department.name}</p>
-                </div>
+                <>
+                  <div key={department.id} className="bg-card px-4 py-3 min-h-[56px] flex items-center transition-all duration-200 ease-out hover:bg-muted/30 hover:shadow-sm hover:-translate-y-0.5 hover:border-primary/20">
+                    <div className="flex w-full items-center justify-between gap-3 transition-transform duration-200 ease-out group-hover:translate-x-0.5">
+                      <p className="font-medium text-foreground whitespace-normal break-words">{department.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => setDetailView((current) => (
+                          current?.type === 'department' && current?.id === department.id
+                            ? null
+                            : { type: 'department', id: department.id, name: department.name }
+                        ))}
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 ${
+                          detailView?.type === 'department' && detailView?.id === department.id
+                            ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-sm'
+                        }`}
+                        aria-expanded={detailView?.type === 'department' && detailView?.id === department.id}
+                      >
+                        {departmentUsageById[department.id] || 0} user{(departmentUsageById[department.id] || 0) === 1 ? '' : 's'}
+                      </button>
+                    </div>
+                  </div>
+                  {detailView?.type === 'department' && detailView?.id === department.id ? (
+                    <div className="border-t border-border bg-muted/20 px-4 py-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Users</p>
+                      <div className="flex flex-wrap gap-2">
+                        {detailUsers.map((item) => (
+                          <Badge key={item.id} variant="outline" className="rounded-full bg-background px-3 py-1">
+                            {item.full_name || item.email}
+                          </Badge>
+                        ))}
+                        {detailUsers.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No users linked to this department.</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             />
 
             <PaginatedTable
               title="Designations"
-              description="Browse designations in pages of six."
+              description="Browse designations in pages of twenty."
               icon={BadgeCheck}
-              items={designations}
+              items={filteredDesignations}
               isLoading={designationsLoading}
-              emptyTitle="No designations yet"
-              emptyDescription="Add designations here so users can choose them in their profile."
-              columns={3}
+              emptyTitle={designationSearch.trim() ? 'No designations match your search' : 'No designations yet'}
+              emptyDescription={
+                designationSearch.trim()
+                  ? 'Try a different designation name.'
+                  : 'Add designations here so users can choose them in their profile.'
+              }
+              columns={1}
+              search={
+                <Input
+                  type="search"
+                  placeholder="Search designations..."
+                  value={designationSearch}
+                  onChange={(e) => {
+                    setDesignationSearch(e.target.value);
+                  }}
+                  className="w-full sm:w-72 bg-background border-border"
+                />
+              }
               renderRow={(designation) => (
-                <div key={designation.id} className="bg-card px-4 py-3 min-h-[56px] flex items-center">
-                  <p className="font-medium text-foreground truncate">{designation.name}</p>
-                </div>
+                <>
+                  <div key={designation.id} className="bg-card px-4 py-3 min-h-[56px] flex items-center transition-all duration-200 ease-out hover:bg-muted/30 hover:shadow-sm hover:-translate-y-0.5 hover:border-primary/20">
+                    <div className="flex w-full items-center justify-between gap-3 transition-transform duration-200 ease-out group-hover:translate-x-0.5">
+                      <p className="font-medium text-foreground whitespace-normal break-words">{designation.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => setDetailView((current) => (
+                          current?.type === 'designation' && current?.id === designation.id
+                            ? null
+                            : { type: 'designation', id: designation.id, name: designation.name }
+                        ))}
+                        className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 ${
+                          detailView?.type === 'designation' && detailView?.id === designation.id
+                            ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary hover:shadow-sm'
+                        }`}
+                        aria-expanded={detailView?.type === 'designation' && detailView?.id === designation.id}
+                      >
+                        {designationUsageById[designation.id] || 0} user{(designationUsageById[designation.id] || 0) === 1 ? '' : 's'}
+                      </button>
+                    </div>
+                  </div>
+                  {detailView?.type === 'designation' && detailView?.id === designation.id ? (
+                    <div className="border-t border-border bg-muted/20 px-4 py-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Users</p>
+                      <div className="flex flex-wrap gap-2">
+                        {detailUsers.map((item) => (
+                          <Badge key={item.id} variant="outline" className="rounded-full bg-background px-3 py-1">
+                            {item.full_name || item.email}
+                          </Badge>
+                        ))}
+                        {detailUsers.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No users linked to this designation.</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               )}
             />
           </div>
