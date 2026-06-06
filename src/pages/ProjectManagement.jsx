@@ -19,6 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Building2, FolderKanban, Pencil, Plus, Clock, Users, FileDown, FileText } from 'lucide-react';
+import pdfHeaderImage from '@/assets/images/dark_mode.png';
+import pdfFooterImage from '@/assets/images/red_disc.png';
 
 const EMPTY_CLIENT_FORM = { name: '', description: '', is_active: true };
 const EMPTY_PROJECT_FORM = {
@@ -188,6 +190,9 @@ function buildProjectRows(projects, clientsById, departmentsById, approvedStatsB
       status: project.is_active ? 'Active' : 'Inactive',
       billable: project.is_billable_default ? 'Yes' : 'No',
       approvedHours: approvedStats?.totalHours ? `${approvedStats.totalHours.toFixed(1)}h` : '0h',
+      contributors: approvedStats?.members?.length
+        ? approvedStats.members.map((member) => member.userName)
+        : [],
       description: project.description || '',
       color: project.color || '',
     };
@@ -195,7 +200,7 @@ function buildProjectRows(projects, clientsById, departmentsById, approvedStatsB
 }
 
 function exportProjectsCsv(rows) {
-  const headers = ['Project Name', 'Client', 'Department', 'Status', 'Billable Default', 'Approved Hours', 'Description', 'Color'];
+  const headers = ['Project Name', 'Client', 'Department', 'Status', 'Billable Default', 'Approved Hours', 'Contributors', 'Description', 'Color'];
   const csv = [
     headers.map(escapeCsvValue).join(','),
     ...rows.map((row) => [
@@ -205,6 +210,7 @@ function exportProjectsCsv(rows) {
       row.status,
       row.billable,
       row.approvedHours,
+      row.contributors.length > 0 ? row.contributors.join(', ') : 'No contributors yet',
       row.description,
       row.color,
     ].map(escapeCsvValue).join(',')),
@@ -213,17 +219,49 @@ function exportProjectsCsv(rows) {
   downloadFile(`projects-export-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8;');
 }
 
-function exportProjectsPdf(rows) {
+function loadImageAsDataUrl(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Could not prepare PDF header image.'));
+        return;
+      }
+      context.drawImage(image, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    image.onerror = () => reject(new Error('Could not load PDF header image.'));
+    image.src = src;
+  });
+}
+
+async function exportProjectsPdf(rows) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 32;
+  const headerBannerHeight = 72;
+  const bottomLogoSize = 40;
+  const bottomLogoMargin = 12;
+  const bottomReserved = bottomLogoSize + bottomLogoMargin + 16;
+  const contentWidth = pageWidth - margin * 2;
+  const cardPadding = 16;
+  const cardInnerWidth = contentWidth - cardPadding * 2;
   const lineHeight = 14;
-  const titleY = 36;
-  const headers = ['Project', 'Client', 'Department', 'Status', 'Billable', 'Approved Hours'];
-  const columnWidths = [150, 120, 120, 70, 70, 90];
-  const xPositions = [margin, 182, 308, 434, 514, 590];
+  const sectionGap = 14;
 
+  const [headerImageData, footerImageData] = await Promise.all([
+    loadImageAsDataUrl(pdfHeaderImage),
+    loadImageAsDataUrl(pdfFooterImage),
+  ]);
+
+  doc.addImage(headerImageData, 'PNG', 0, 0, pageWidth, headerBannerHeight);
+
+  const titleY = headerBannerHeight + 28;
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('Project Export', margin, titleY);
@@ -231,44 +269,116 @@ function exportProjectsPdf(rows) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Generated on ${new Date().toLocaleString()}`, margin, titleY + 18);
 
-  let y = titleY + 44;
+  let y = titleY + 42;
 
-  const drawHeader = () => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFillColor(240, 240, 240);
-    doc.rect(margin - 4, y - 12, pageWidth - margin * 2 + 8, 18, 'F');
-    headers.forEach((header, index) => {
-      doc.text(header, xPositions[index], y);
-    });
-    y += 18;
-    doc.setFont('helvetica', 'normal');
-  };
-
-  const ensureSpace = () => {
-    if (y > pageHeight - 40) {
+  const ensureSpace = (requiredHeight) => {
+    if (y + requiredHeight > pageHeight - bottomReserved) {
       doc.addPage();
       y = 36;
-      drawHeader();
     }
   };
 
-  drawHeader();
+  const drawProjectCard = (row) => {
+    const nameLines = doc.splitTextToSize(row.name || '', cardInnerWidth);
+    const metadata = [
+      ['Client', row.client],
+      ['Department', row.department],
+      ['Status', row.status],
+      ['Billable', row.billable],
+      ['Approved Hours', row.approvedHours],
+    ];
+    const descriptionLines = row.description ? doc.splitTextToSize(row.description, cardInnerWidth) : [];
+    const contributorLines = row.contributors.length > 0 ? row.contributors : ['No contributors yet'];
+    const wrappedContributorLines = contributorLines.flatMap((name) => doc.splitTextToSize(name, cardInnerWidth - 12));
 
-  rows.forEach((row) => {
-    const values = [row.name, row.client, row.department, row.status, row.billable, row.approvedHours];
-    const wrappedLines = values.map((value, index) =>
-      doc.splitTextToSize(String(value || ''), columnWidths[index])
-    );
-    const rowHeight = Math.max(...wrappedLines.map((lines) => lines.length)) * lineHeight + 8;
-    ensureSpace();
+    const metadataHeight = metadata.length * 16;
+    const descriptionHeight = descriptionLines.length ? 14 + descriptionLines.length * lineHeight : 0;
+    const contributorsHeight = 22 + wrappedContributorLines.length * lineHeight + 6;
+    const blockHeight =
+      cardPadding * 2
+      + 26
+      + nameLines.length * 16
+      + 12
+      + metadataHeight
+      + descriptionHeight
+      + contributorsHeight
+      + 10;
 
-    values.forEach((value, index) => {
-      const lines = wrappedLines[index];
-      doc.text(lines, xPositions[index], y);
+    ensureSpace(blockHeight + sectionGap);
+
+    const accentColor = row.color || '#1f2937';
+    doc.setDrawColor(214, 219, 227);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, y, contentWidth, blockHeight, 8, 8, 'FD');
+    doc.setFillColor(246, 248, 250);
+    doc.roundedRect(margin, y, contentWidth, 28, 8, 8, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(accentColor);
+    doc.setFillColor(accentColor);
+    doc.roundedRect(margin + 10, y + 10, 8, 8, 3, 3, 'FD');
+
+    let innerY = y + 20;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(21, 28, 36);
+    doc.text(nameLines, margin + cardPadding, innerY);
+    innerY += nameLines.length * 16 + 10;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(85, 92, 104);
+
+    metadata.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, margin + cardPadding, innerY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(value || '—'), margin + cardPadding + 92, innerY);
+      innerY += 16;
     });
 
-    y += rowHeight;
+    if (descriptionLines.length) {
+      innerY += 2;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(54, 62, 72);
+      doc.text('Summary:', margin + cardPadding, innerY);
+      innerY += 14;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(85, 92, 104);
+      doc.text(descriptionLines, margin + cardPadding, innerY);
+      innerY += descriptionLines.length * lineHeight + 10;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(54, 62, 72);
+    doc.text('Contributors', margin + cardPadding, innerY);
+    innerY += 14;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(85, 92, 104);
+    doc.text(wrappedContributorLines.map((line) => `- ${line}`), margin + cardPadding + 10, innerY);
+
+    y += blockHeight + sectionGap;
+    doc.setTextColor(0, 0, 0);
+  };
+
+  rows.forEach((row) => {
+    drawProjectCard(row);
   });
+
+  const totalPages = doc.getNumberOfPages();
+  const bottomLogoX = (pageWidth - bottomLogoSize) / 2;
+  const bottomLogoY = pageHeight - bottomLogoSize - bottomLogoMargin;
+
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    doc.addImage(footerImageData, 'PNG', bottomLogoX, bottomLogoY, bottomLogoSize, bottomLogoSize);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(88, 96, 109);
+    doc.text(`${page} / ${totalPages}`, pageWidth - margin, pageHeight - 16, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+  }
 
   doc.save(`projects-export-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
@@ -469,8 +579,12 @@ export default function ProjectManagement() {
     exportProjectsCsv(exportRows);
   };
 
-  const handleExportPdf = () => {
-    exportProjectsPdf(exportRows);
+  const handleExportPdf = async () => {
+    try {
+      await exportProjectsPdf(exportRows);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+    }
   };
 
   function openCreateClientDialog() {
