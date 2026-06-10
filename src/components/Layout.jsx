@@ -5,7 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   LayoutDashboard, ClipboardList, Clock, Users,
   CheckSquare, FileText, User, LogOut, Menu, ChevronRight,
-  CalendarDays, BarChart3, Tag, Target
+  CalendarDays, BarChart3, Tag, Target, Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -25,6 +25,7 @@ const ADMIN_NAV = [
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
   { path: '/dept-summary', label: 'Hours vs Estimates', icon: Target },
   { path: '/tags', label: 'Tag Management', icon: Tag },
+  { path: '/reminders', label: 'Reminders', icon: Bell },
 ];
 
 const SUPERUSER_NAV = [
@@ -32,6 +33,7 @@ const SUPERUSER_NAV = [
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
   { path: '/tags', label: 'Tag Management', icon: Tag },
+  { path: '/reminders', label: 'Reminders', icon: Bell },
 ];
 
 function getNavItems(role) {
