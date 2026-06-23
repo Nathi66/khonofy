@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import StatsCard from '@/components/StatsCard';
 import { Link } from 'react-router-dom';
 import { Users, CheckSquare, Clock, TrendingUp, ArrowRight, AlertCircle } from 'lucide-react';
+import WeeklyProgressSummary from '@/components/WeeklyProgressSummary';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -35,6 +36,16 @@ export default function AdminDashboard({ user }) {
   const completedTasks = teamTasks.filter(t => t.status === 'completed').length;
   const totalTasks = teamTasks.length;
 
+  const weeklySummary = {
+    hoursLogged: pendingTimesheets.reduce((sum, ts) => sum + (ts.total_hours || 0), 0),
+    timesheetStatus: pendingTimesheets.length ? 'pending' : 'up to date',
+    activeItems: openTasks,
+    missingItems: pendingTimesheets.length,
+    openTasks,
+    completedTasks,
+    completionRate: totalTasks ? (completedTasks / totalTasks) * 100 : 0,
+  };
+
   const taskStatusData = [
     { name: 'To Do', count: teamTasks.filter(t => t.status === 'todo').length },
     { name: 'In Progress', count: teamTasks.filter(t => t.status === 'in_progress').length },
@@ -60,6 +71,8 @@ export default function AdminDashboard({ user }) {
           color="green"
         />
       </div>
+
+      <WeeklyProgressSummary role="admin" summary={weeklySummary} compact />
 
       {pendingTimesheets.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">

@@ -4,6 +4,7 @@ import StatsCard from '@/components/StatsCard';
 import TaskCard from '@/components/TaskCard';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Clock, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import WeeklyProgressSummary from '@/components/WeeklyProgressSummary';
 import { Button } from '@/components/ui/button';
 
 export default function StaffDashboard({ user }) {
@@ -31,6 +32,15 @@ export default function StaffDashboard({ user }) {
   const openTasks = myTasks.filter(t => t.status !== 'completed').length;
   const completedTasks = myTasks.filter(t => t.status === 'completed').length;
   const pendingTimesheet = timesheets.find(t => t.status === 'pending');
+  const weeklySummary = {
+    hoursLogged: hoursToday,
+    timesheetStatus: pendingTimesheet ? 'pending' : 'up to date',
+    activeItems: openTasks,
+    missingItems: Math.max(0, 5 - new Set(todayEntries.map(entry => entry.date)).size),
+    openTasks,
+    completedTasks,
+    completionRate: myTasks.length ? (completedTasks / myTasks.length) * 100 : 0,
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -50,6 +60,8 @@ export default function StaffDashboard({ user }) {
           color={pendingTimesheet ? 'amber' : 'green'}
         />
       </div>
+
+      <WeeklyProgressSummary role="staff" summary={weeklySummary} compact />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border border-border p-5">

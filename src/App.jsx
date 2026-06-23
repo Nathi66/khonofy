@@ -21,6 +21,7 @@ import TagManagement from './pages/TagManagement';
 import AdminReports from './pages/AdminReports';
 import DeptHeadSummary from './pages/DeptHeadSummary';
 import ReminderScheduler from './pages/ReminderScheduler';
+import WeeklyProgress from './pages/WeeklyProgress';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -52,8 +53,9 @@ function App() {
                   <Route path="/calendar" element={<CalendarView />} />
                   <Route path="/tags" element={<TagManagement />} />
                   <Route path="/admin-reports" element={<AdminReports />} />
-        <Route path="/dept-summary" element={<DeptHeadSummary />} />
-        <Route path="/reminders" element={<ReminderScheduler />} />
+                  <Route path="/dept-summary" element={<DeptHeadSummary />} />
+                  <Route path="/reminders" element={<ReminderScheduler />} />
+                  <Route path="/weekly-progress" element={<WeeklyProgress />} />
                 </Route>
               </Route>
               <Route path="*" element={<PageNotFound />} />

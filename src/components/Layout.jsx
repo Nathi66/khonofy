@@ -5,7 +5,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   LayoutDashboard, ClipboardList, Clock, Users,
   CheckSquare, FileText, User, LogOut, Menu, ChevronRight,
-  CalendarDays, BarChart3, Tag, Target, Bell
+  CalendarDays, BarChart3, Tag, Target, Bell, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -14,6 +14,7 @@ const STAFF_NAV = [
   { path: '/', label: 'My Dashboard', icon: LayoutDashboard },
   { path: '/daily-log', label: 'Daily Task Log', icon: ClipboardList },
   { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/weekly-progress', label: 'Weekly Progress', icon: TrendingUp },
   { path: '/timesheets', label: 'My Timesheets', icon: Clock },
 ];
 
@@ -22,6 +23,7 @@ const ADMIN_NAV = [
   { path: '/team', label: 'Team Management', icon: Users },
   { path: '/tasks', label: 'Task Management', icon: CheckSquare },
   { path: '/timesheets/review', label: 'Timesheet Review', icon: Clock },
+  { path: '/weekly-progress', label: 'Weekly Progress', icon: TrendingUp },
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
   { path: '/dept-summary', label: 'Hours vs Estimates', icon: Target },
   { path: '/tags', label: 'Tag Management', icon: Tag },
@@ -32,6 +34,7 @@ const SUPERUSER_NAV = [
   { path: '/', label: 'Global Dashboard', icon: LayoutDashboard },
   { path: '/audit-trail', label: 'Audit Trail', icon: FileText },
   { path: '/admin-reports', label: 'Reports', icon: BarChart3 },
+  { path: '/weekly-progress', label: 'Weekly Progress', icon: TrendingUp },
   { path: '/tags', label: 'Tag Management', icon: Tag },
   { path: '/reminders', label: 'Reminders', icon: Bell },
 ];
