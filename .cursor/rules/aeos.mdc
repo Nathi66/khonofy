@@ -1,0 +1,16 @@
+---
+description: Khonofy AEOS — specs own knowledge; skills own behavior
+alwaysApply: true
+---
+
+# AEOS hard rules
+
+- Product knowledge lives in `.kiro/specs/`. When business rules change, update the owning spec; do not hardcode rules in skills, prompts, or ad-hoc instructions.
+- Before implementing, read relevant `.kiro/specs/*` and `.kiro/project/*`. Follow `.kiro/constitution/*` (especially definition-of-done, security, testing).
+- Use role contracts via `.cursor/skills/<role>/` → `.kiro/skills/<role>/SKILL.md`. Skills reference specs; they must not copy business rules.
+- Multi-step work follows `.kiro/workflows/*`. Loop Engineer orchestrates gates and preview; it does not edit business rules.
+- Schema changes require Prisma migrations. Lint, typecheck, and build must pass for done work. Accessibility is mandatory for UI.
+- Prefer communicating through specifications (API, database, roles) instead of inventing parallel contracts in chat.
+- When `AEOS_VERBOSE=true` (env or user message), emit an AEOS verbose trace per `.kiro/project/verbose-mode.md` and `.kiro/templates/verbose-trace.md`: Task → Workflow → Specs → Skills → Constitution → Pipeline → Current Agent → Outputs → Next Agent → Loop Verification → Completed. Show handoffs and reasoning, not only final code.
+- Daily rhythm: `.kiro/workflows/daily-cycle.md` (morning review → sprint planning → Engineering Council → one-feature implementation → Loop verification).
+- Non-trivial features/changes: run `.kiro/workflows/engineering-council.md` before code. Seats assess (no diffs); Loop summarizes conflicts and recommends the plan via `.kiro/templates/council-review.md`.

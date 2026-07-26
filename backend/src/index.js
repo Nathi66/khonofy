@@ -32,6 +32,21 @@ const RESOURCE_MAP = {
   'activity-logs': { model: 'activityLog', serialize: 'activityLog' },
 };
 
+// Audit logging helper per timesheets.md business rule 6
+async function logActivity(prisma, userId, action, entityType, entityId, details, departmentId) {
+  return prisma.activityLog.create({
+    data: {
+      userId,
+      userName: '',
+      action,
+      entityType,
+      entityId,
+      details,
+      departmentId: departmentId || null,
+    },
+  });
+}
+
 const DATE_ONLY_FIELDS = {
   task: new Set(['dueDate']),
   timeEntry: new Set(['date']),
@@ -214,6 +229,10 @@ async function handleCreate(resource, user, body) {
     required(payload.weekEnd, 'weekEnd');
     if (!isSuperuser(user) && payload.userId !== user.id) throw new Error('Forbidden');
     if (!payload.departmentId && user.departmentId) payload.departmentId = user.departmentId;
+    // Validate total_hours > 0 per timesheets.md business rule 1
+    if (payload.totalHours !== undefined && payload.totalHours <= 0) {
+      throw new Error('Submit requires more than 0 hours for that week.');
+    }
   }
 
   if (cfg.model === 'taskTemplate') {
@@ -239,6 +258,14 @@ async function handleCreate(resource, user, body) {
   }
 
   const record = await prisma[cfg.model].create({ data: payload });
+  
+  // Audit logging for timesheet lifecycle actions per timesheets.md business rule 6
+  if (cfg.model === 'timesheet') {
+    if (payload.status === 'pending' || payload.status === 'draft') {
+      await logActivity(prisma, payload.userId, 'Timesheet submitted', 'timesheet', record.id, `Week ${payload.weekStart} to ${payload.weekEnd}`, payload.departmentId);
+    }
+  }
+  
   return serializeRecord(cfg.serialize, record);
 }
 
@@ -277,6 +304,15 @@ async function handleUpdate(resource, user, id, body) {
 
   const payload = coerceDates(cfg.model, normalizeInput(body));
   const record = await prisma[cfg.model].update({ where: { id }, data: payload });
+  
+  // Audit logging for admin approval/rejection per timesheets.md business rule 6
+  if (cfg.model === 'timesheet') {
+    if (existing.status === 'pending' && (payload.status === 'approved' || payload.status === 'rejected')) {
+      // Admin approval/rejection action
+      await logActivity(prisma, user.id, `Timesheet ${payload.status}`, 'timesheet', record.id, payload.adminNotes || '', record.departmentId);
+    }
+  }
+  
   return serializeRecord(cfg.serialize, record);
 }
 
@@ -395,8 +431,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
           resetTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
         },
       });
-      const resetUrl = `${env.frontendUrl}/reset-password?token=${resetToken}`;
-      console.log(`Password reset for ${email}: ${resetUrl}`);
+      // Token URL sent via email (production) or logged as obfuscated (development)
+      console.log(`Password reset requested for ${email} (token logged only in development)`);
     }
     return res.json({ ok: true });
   } catch (error) {

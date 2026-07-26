@@ -51,6 +51,9 @@ export default function TimesheetManagement() {
 
   const submitTimesheet = useMutation({
     mutationFn: async () => {
+      if (totalHours <= 0) {
+        throw new Error('Submit requires more than 0 hours for that week.');
+      }
       const payload = {
         user_id: user.id,
         user_name: user.full_name || user.email,
@@ -71,10 +74,10 @@ export default function TimesheetManagement() {
       ));
       return ts;
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['myTimesheets'] });
       queryClient.invalidateQueries({ queryKey: ['weekEntries'] });
-      if (user) await logActivity(user, 'Submitted timesheet', 'Timesheet', '', `Week of ${week.start} (${totalHours}h)`);
+      if (user) await logActivity(user, 'Submitted timesheet', 'Timesheet', result.id, `Week of ${week.start} (${totalHours}h)`);
     },
   });
 
