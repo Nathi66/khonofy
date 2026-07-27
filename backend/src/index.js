@@ -544,13 +544,19 @@ app.delete('/api/:resource/:id', requireAuth, async (req, res) => {
 
 app.use((_req, res) => sendError(res, 404, 'Route not found'));
 
-app.listen(env.port, '0.0.0.0', async () => {
-  try {
-    await prisma.$connect();
-  } catch (error) {
-    console.error('Database connection failed:', error.message);
-  }
+// Export app for testing
+export { app };
 
-  console.log(`Backend running at http://localhost:${env.port}`);
-  console.log(`Frontend should run at ${env.frontendUrl}`);
-});
+// Only start server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(env.port, '0.0.0.0', async () => {
+    try {
+      await prisma.$connect();
+    } catch (error) {
+      console.error('Database connection failed:', error.message);
+    }
+
+    console.log(`Backend running at http://localhost:${env.port}`);
+    console.log(`Frontend should run at ${env.frontendUrl}`);
+  });
+}
